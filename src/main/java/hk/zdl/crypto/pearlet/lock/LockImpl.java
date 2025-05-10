@@ -57,6 +57,11 @@ public class LockImpl {
 		}
 		return true;
 	}
+	
+	public static boolean clear_password() {
+		Util.getUserSettings().remove(WALLET_LOCK_DATA);
+		return true;
+	}
 
 	static boolean validete_password(char[] password) {
 		var s = Util.getUserSettings().get(WALLET_LOCK_DATA, null);

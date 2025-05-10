@@ -16,6 +16,7 @@ import hk.zdl.crypto.pearlet.component.MainFrame;
 import hk.zdl.crypto.pearlet.component.event.WalletLockEvent;
 import hk.zdl.crypto.pearlet.ds.CryptoNetwork;
 import hk.zdl.crypto.pearlet.laf.MyUIManager;
+import hk.zdl.crypto.pearlet.lock.LockImpl;
 import hk.zdl.crypto.pearlet.lock.WalletLock;
 import hk.zdl.crypto.pearlet.persistence.MyDb;
 import hk.zdl.crypto.pearlet.tx_history_query.TxHistoryQueryExecutor;
@@ -36,6 +37,10 @@ public class PearletJ {
 		}
 		UIUtil.printVersionOnSplashScreen();
 		MyUIManager.setLookAndFeel();
+		if (args.length > 0 && args[0].equals("--clear-pw")) {
+			clear_password();
+			return;
+		}
 		var db_empty = is_db_empty();
 		try {
 			System.setProperty("derby.system.home", Files.createTempDirectory(null).toFile().getAbsolutePath());
@@ -64,6 +69,14 @@ public class PearletJ {
 		SwingUtilities.invokeLater(() -> EventBus.getDefault().post(new WalletLockEvent(WalletLock.hasPassword() ? WalletLockEvent.Type.LOCK : WalletLockEvent.Type.UNLOCK)));
 		new NWMon();
 		new TxHistoryQueryExecutor();
+	}
+
+	private static void clear_password() {
+		var i = JOptionPane.showConfirmDialog(null, "Are you sure to clear password?", "Clear Password", JOptionPane.OK_CANCEL_OPTION);
+		if (i == JOptionPane.OK_OPTION) {
+			LockImpl.clear_password();
+			JOptionPane.showMessageDialog(null, "Password is clear.");
+		}
 	}
 
 	private static void create_default_networks() throws Exception {
