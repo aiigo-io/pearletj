@@ -2,7 +2,6 @@ package hk.zdl.crypto.pearlet.component.account_settings.web3j;
 
 import java.awt.Component;
 import java.io.File;
-import java.io.IOException;
 import java.util.ResourceBundle;
 
 import javax.swing.Icon;
@@ -13,7 +12,6 @@ import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 
 import org.greenrobot.eventbus.EventBus;
-import org.web3j.crypto.CipherException;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.WalletUtils;
 
@@ -54,7 +52,7 @@ public class ImportWeb3JAccountFromFile {
 		Credentials cred = null;
 		try {
 			cred = WalletUtils.loadCredentials("", file);
-		} catch (IOException | CipherException e) {
+		} catch (Exception e) {
 		}
 		var pw_field = new JPasswordField(20);
 		int j = JOptionPane.showConfirmDialog(w, pw_field, rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE.INPUT_PW"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, icon);

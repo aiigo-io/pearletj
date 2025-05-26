@@ -39,6 +39,8 @@ import hk.zdl.crypto.pearlet.component.account_settings.CreateAccount;
 import hk.zdl.crypto.pearlet.component.account_settings.ExportAccountTable;
 import hk.zdl.crypto.pearlet.component.account_settings.burst.ImportBurstAccount;
 import hk.zdl.crypto.pearlet.component.account_settings.burst.WatchBurstAccount;
+import hk.zdl.crypto.pearlet.component.account_settings.web3j.ImportWeb3JAccountFromFile;
+import hk.zdl.crypto.pearlet.component.account_settings.web3j.ImportWeb3JAccountFromText;
 import hk.zdl.crypto.pearlet.component.account_settings.web3j.WatchWeb3JAccount;
 import hk.zdl.crypto.pearlet.component.event.AccountChangeEvent;
 import hk.zdl.crypto.pearlet.component.event.AccountListUpdateEvent;
@@ -124,6 +126,11 @@ public class AccountSettingsPanel extends JPanel {
 							var import_from_file = new JMenuItem(rsc_bdl.getString("SETTINGS.ACCOUNT.PANEL.FROM.JSON_FILE"));
 							Stream.of(import_from_prik, import_from_mnic, import_from_file).forEach(import_acc_web3j::add);
 							menu.add(import_acc_web3j);
+							SwingUtilities.invokeLater(() -> {
+								import_from_prik.addActionListener(ee -> ImportWeb3JAccountFromText.import_from_private_key(this, nw));
+								import_from_mnic.addActionListener(ee -> ImportWeb3JAccountFromText.load_from_mnemonic(this, nw));
+								import_from_file.addActionListener(ee -> ImportWeb3JAccountFromFile.create_import_account_dialog(this, nw));
+							});
 						}
 					}
 					menu.show(import_account_btn, 0, 0);

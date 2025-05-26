@@ -6,6 +6,7 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.text.MessageFormat;
 import java.util.ResourceBundle;
 
 import javax.swing.Icon;
@@ -18,8 +19,9 @@ import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 
 import org.greenrobot.eventbus.EventBus;
+import org.web3j.crypto.Bip32ECKeyPair;
 import org.web3j.crypto.Credentials;
-import org.web3j.crypto.WalletUtils;
+import org.web3j.crypto.MnemonicUtils;
 
 import hk.zdl.crypto.pearlet.component.account_settings.WalletUtil;
 import hk.zdl.crypto.pearlet.component.event.AccountListUpdateEvent;
@@ -105,52 +107,33 @@ public class ImportWeb3JAccountFromText {
 			JOptionPane.showMessageDialog(w, rsc_bdl.getString("SETTINGS.ACCOUNT.IMPORT.MNC_CANNOT_EMPTY"), rsc_bdl.getString("GENERAL.ERROR"), JOptionPane.ERROR_MESSAGE);
 			return;
 		}
-		Credentials cred = null;
-
+		
 		try {
-			cred = WalletUtils.loadBip39Credentials("", mnemonic);
-		} catch (Exception e) {
-		}
+			// 1. 生成BIP-39种子（保持不变）
+			byte[] seed = MnemonicUtils.generateSeed(mnemonic, "");
 
-		if (cred == null) {
-			try {
-				cred = WalletUtils.loadBip39Credentials(mnemonic, mnemonic);
-			} catch (Exception e) {
-			}
-		}
-		if (cred == null) {
-			var pw_field = new JPasswordField(20);
-			var pane = new JOptionPane(pw_field, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, icon);
-			var dlg = pane.createDialog(w, rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE.INPUT_PW"));
-			dlg.addWindowFocusListener(new WindowAdapter() {
-				@Override
-				public void windowGainedFocus(WindowEvent e) {
-					pw_field.grabFocus();
-				}
-			});
-			dlg.setVisible(true);
-			if ((int) pane.getValue() != JOptionPane.OK_OPTION) {
-				return;
-			}
-			try {
-				cred = WalletUtils.loadBip39Credentials(new String(pw_field.getPassword()), mnemonic);
-			} catch (Exception e) {
-				JOptionPane.showMessageDialog(w, e.getMessage(), e.getClass().getSimpleName(), JOptionPane.ERROR_MESSAGE);
-				return;
-			}
+			// 2. 使用Bip32ECKeyPair派生密钥
+			int[] path = { 44 | Bip32ECKeyPair.HARDENED_BIT, // 44' (purpose)
+					60 | Bip32ECKeyPair.HARDENED_BIT, // 60' (coin type)
+					0 | Bip32ECKeyPair.HARDENED_BIT, // 0' (account)
+					0, // 0 (change)
+					0 // 0 (address index)
+			};
+			Bip32ECKeyPair masterKeyPair = Bip32ECKeyPair.generateKeyPair(seed);
+			Bip32ECKeyPair derivedKeyPair = Bip32ECKeyPair.deriveKeyPair(masterKeyPair, path);
 
-		}
+			// 3. 转换为凭证（直接使用Bip32ECKeyPair创建）
+			Credentials cred = Credentials.create(derivedKeyPair);
 
-		try {
+			// 后续保存逻辑不变
 			if (WalletUtil.insert_web3j_account(nw, cred.getEcKeyPair())) {
 				UIUtil.displayMessage(rsc_bdl.getString("SETTINGS.ACCOUNT.IMPORT.TITLE"), rsc_bdl.getString("GENERAL.DONE"));
 				EventBus.getDefault().post(new AccountListUpdateEvent());
 			} else {
 				JOptionPane.showMessageDialog(w, rsc_bdl.getString("GENERAL.DUP"), rsc_bdl.getString("GENERAL.ERROR"), JOptionPane.ERROR_MESSAGE);
 			}
-		} catch (Exception x) {
-			JOptionPane.showMessageDialog(w, x.getMessage(), x.getClass().getSimpleName(), JOptionPane.ERROR_MESSAGE);
+		} catch (Exception e) {
+			JOptionPane.showMessageDialog(w, MessageFormat.format(rsc_bdl.getString("SETTINGS.ACCOUNT.IMPORT.ERR_LOAD"), e.getMessage()), e.getClass().getSimpleName(), JOptionPane.ERROR_MESSAGE);
 		}
-
 	}
 }

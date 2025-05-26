@@ -296,18 +296,13 @@
 			<snapshots>
 				<enabled>true</enabled>
 			</snapshots>
-		</repository>
-		<repository>
-			<id>nybbs2003-tura</id>
-			<url>https://packagecloud.io/nybbs2003/tura/maven2</url>
-			<releases>
-				<enabled>true</enabled>
-			</releases>
-			<snapshots>
-				<enabled>true</enabled>
-			</snapshots>
-		</repository>
-	</repositories>
+	</repository>
+		  <repository>
+		    <id>sonatype-snasphots</id>
+		    <name>Sonatype snapshots repo</name>
+		    <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+		  </repository>
+  	</repositories>
 	<dependencies>
 		<!-- local DB -->
 		<dependency>
@@ -358,30 +353,30 @@
 			<version>1.0.0</version>
 		</dependency>
 		<dependency>
-			<groupId>org.web3j</groupId>
-			<artifactId>core</artifactId>
-			<version>5.0.0</version>
+		    <groupId>org.web3j</groupId>
+		    <artifactId>core</artifactId>
+		    <version>4.14.0</version>
 		</dependency>
 		<dependency>
-			<groupId>org.web3j</groupId>
-			<artifactId>crypto</artifactId>
-			<version>5.0.0</version>
+		    <groupId>org.web3j</groupId>
+		    <artifactId>crypto</artifactId>
+		    <version>4.14.0</version>
 		</dependency>
 		<dependency>
-			<groupId>org.web3j</groupId>
-			<artifactId>utils</artifactId>
-			<version>5.0.0</version>
+		    <groupId>org.web3j</groupId>
+		    <artifactId>utils</artifactId>
+		    <version>4.14.0</version>
 		</dependency>
 		<dependency>
-			<groupId>org.web3j</groupId>
-			<artifactId>contracts</artifactId>
-			<version>5.0.0</version>
+		    <groupId>org.web3j</groupId>
+		    <artifactId>contracts</artifactId>
+		    <version>4.14.0</version>
 		</dependency>
 		<!-- Utilities -->
 		<dependency>
-			<groupId>org.json</groupId>
-			<artifactId>json</artifactId>
-			<version>20240303</version>
+		    <groupId>org.json</groupId>
+		    <artifactId>json</artifactId>
+		    <version>20250517</version>
 		</dependency>
 		<dependency>
 			<groupId>org.yaml</groupId>

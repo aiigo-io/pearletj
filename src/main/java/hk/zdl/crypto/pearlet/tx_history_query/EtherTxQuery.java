@@ -15,7 +15,7 @@ public class EtherTxQuery {
 		this.nw = nw;
 	}
 
-	public void queryTxHistory(String address) throws Exception {
+	public synchronized void queryTxHistory(String address) throws Exception {
 		if (address == null) {
 			return;
 		}
