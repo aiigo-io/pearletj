@@ -285,12 +285,7 @@ public class DashBoard extends JPanel {
 		manage_token_list_btn.setEnabled(nw != null && nw.isBurst());
 	}
 
-	@SuppressWarnings({ "removal" })
 	private final synchronized void refresh_token_list() {
-		if (token_list_thread != null) {
-			token_list_thread.stop();
-			token_list_thread = null;
-		}
 		token_list_thread = new Thread() {
 
 			@Override

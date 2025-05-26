@@ -14,7 +14,7 @@ public class EtherTxIdCellRanderer extends DefaultTableCellRenderer {
 
 	@Override
 	protected void setValue(Object value) {
-		setText(((JSONObject)value).getString("tx_hash"));
+		setText(((JSONObject)value).getString("hash"));
 	}
 
 }

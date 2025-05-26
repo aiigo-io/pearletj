@@ -30,8 +30,8 @@ public class EtherValueCellRenderer extends DefaultTableCellRenderer {
 		boolean isDark = otd.isDark();
 		setBackground(isDark ? darker(my_cyan) : my_cyan);
 		if (!isSelected) {
-			JSONObject tx = (JSONObject) value;
-			if (tx.getString("to_address").equals(address)) {
+			var tx = (JSONObject) value;
+			if (tx.getJSONObject("to").getString("hash").equals(address)) {
 				setBackground(isDark ? darker(my_green) : my_green);
 			} else {
 				setBackground(isDark ? darker(Color.pink) : Color.pink);
@@ -42,9 +42,9 @@ public class EtherValueCellRenderer extends DefaultTableCellRenderer {
 
 	@Override
 	protected void setValue(Object value) {
-		JSONObject tx = (JSONObject) value;
-		BigDecimal val = Convert.fromWei(new BigDecimal(tx.getString("value")),Convert.Unit.ETHER).stripTrailingZeros();
-		setText(val.stripTrailingZeros().toString());
+		var tx = (JSONObject) value;
+		var val = Convert.fromWei(new BigDecimal(tx.getString("value")),Convert.Unit.ETHER);
+		setText(val.stripTrailingZeros().toPlainString());
 	}
 
 	private static final Color darker(Color c) {

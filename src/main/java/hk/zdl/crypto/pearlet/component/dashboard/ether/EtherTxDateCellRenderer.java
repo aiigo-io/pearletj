@@ -19,7 +19,7 @@ public class EtherTxDateCellRenderer extends DefaultTableCellRenderer {
 
 	@Override
 	protected void setValue(Object value) {
-		String str = ((JSONObject) value).getString("block_signed_at");
+		String str = ((JSONObject) value).getString("timestamp");
 		if (str.isBlank()) {
 			return;
 		}

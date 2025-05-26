@@ -106,6 +106,7 @@ public class NetworkSettingsPanel extends JPanel {
 		});
 	}
 
+	@SuppressWarnings("deprecation")
 	private final Component init_network_UI_components(CryptoNetwork o) {
 		var panel = new JPanel(new BorderLayout());
 		panel.setPreferredSize(new Dimension(700, 130));

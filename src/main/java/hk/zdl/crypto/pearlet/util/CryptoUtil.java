@@ -24,6 +24,8 @@ import org.json.JSONTokener;
 import org.web3j.crypto.WalletUtils;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterName;
+import org.web3j.protocol.core.DefaultBlockParameterNumber;
+import org.web3j.protocol.core.methods.response.EthTransaction;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.utils.Convert;
 
@@ -60,12 +62,11 @@ public class CryptoUtil {
 	private static final synchronized void build_web3j() {
 		var o_1 = MyDb.get_networks().stream().filter(o -> o.isWeb3J()).findAny();
 		var o_2 = MyDb.get_webj_auth();
-		if (o_1.isPresent() && o_2.isPresent()) {
+		if (o_1.isPresent()) {
 			String base_url = o_1.get().getUrl();
 			if (!base_url.endsWith("/")) {
 				base_url += "/";
 			}
-			base_url += o_2.get().getStr("MYAUTH");
 			var httpCredentials = okhttp3.Credentials.basic("", o_2.get().getStr("SECRET"));
 			var client = new OkHttpClient.Builder().addInterceptor(chain -> {
 				Request request = chain.request();
@@ -285,43 +286,31 @@ public class CryptoUtil {
 	}
 
 	public static JSONArray getAccountBalances(String address) throws Exception {
-		var _key = Util.getProp().get("covalenthq_apikey");
-		var request = new Request.Builder().url("https://api.covalenthq.com/v1/1/address/" + address + "/balances_v2/?quote-currency=ETH&format=JSON&nft=true&no-nft-fetch=true&key=" + _key).build();
-		var response = _client.newCall(request).execute();
-		try {
-			var jobj = new JSONObject(new JSONTokener(response.body().charStream()));
-			if (jobj.optBoolean("error")) {
-				throw new IOException(jobj.optString("error_message"));
-			} else {
-				var items = jobj.getJSONObject("data").getJSONArray("items");
-				return items;
-			}
-		} finally {
-			response.body().close();
-			response.close();
-		}
+		var web3j = getWeb3j().orElseThrow(() -> new IOException("Web3j instance not available"));
+		BigInteger weiBalance = web3j.ethGetBalance(address, DefaultBlockParameterName.LATEST).send().getBalance();
+		JSONObject ethBalance = new JSONObject().put("contract_name", "Ether").put("contract_ticker_symbol", "ETH").put("contract_decimals", 18)
+				.put("contract_address", "0x0000000000000000000000000000000000000000") // 添加合约地址字段
+				.put("balance", weiBalance.toString());
+		return new JSONArray().put(ethBalance);
 	}
 
 	public static JSONArray getTxHistory(String address, int page_number, int page_size) throws Exception {
-		if (address == null || address.isBlank() || page_number < 0 || page_size < 1) {
-			throw new IllegalArgumentException();
-		}
-		var _key = Util.getProp().get("covalenthq_apikey");
-		var request = new Request.Builder()
-				.url("https://api.covalenthq.com/v1/1/address/" + address + "/transactions_v2/?quote-currency=ETH&no-logs=true&page-number=" + page_number + "&page-size=" + page_size + "&key=" + _key)
-				.build();
-		var response = _client.newCall(request).execute();
-		try {
-			var jobj = new JSONObject(new JSONTokener(response.body().charStream()));
-			if (jobj.optBoolean("error")) {
-				throw new IOException(jobj.optString("error_message"));
-			}
-			var items = jobj.getJSONObject("data").getJSONArray("items");
-			return items;
-		} finally {
-			response.body().close();
-			response.close();
-		}
+	    var client = WebUtil.getHttpclient();
+	    var url = "http://explorer.aiigo.org/api/v2/addresses/" + address + "/transactions?page=" + page_number + "&page_size=" + page_size;
+	    var httpGet = new HttpGet(url);
+	    
+	    try (var response = client.execute(httpGet)) {
+	        var entity = response.getEntity();
+	        if (response.getStatusLine().getStatusCode() != 200) {
+	            throw new IOException("HTTP error: " + response.getStatusLine());
+	        }
+	        
+	        var json = new JSONObject(new JSONTokener(entity.getContent()));
+	        return json.getJSONArray("items");
+	        
+	    } finally {
+	        httpGet.releaseConnection();
+	    }
 	}
 
 	public static byte[] generateTransferAssetTransaction(CryptoNetwork nw, byte[] senderPublicKey, String recipient, String assetId, BigDecimal quantity, BigDecimal fee) throws Exception {
@@ -484,7 +473,7 @@ public class CryptoUtil {
 		throw new UnsupportedOperationException();
 	}
 
-	public static byte[] sendMessage(CryptoNetwork network, String recipient, byte[] public_key, String message, BigDecimal fee) throws Exception {			
+	public static byte[] sendMessage(CryptoNetwork network, String recipient, byte[] public_key, String message, BigDecimal fee) throws Exception {
 		if (network.isBurst()) {
 			var server_url = network.getUrl();
 			if (!server_url.endsWith("/")) {
@@ -493,7 +482,7 @@ public class CryptoUtil {
 			var httpPost = new HttpPost(server_url + "burst?requestType=sendMessage");
 			var l = new LinkedList<NameValuePair>();
 			l.add(new BasicNameValuePair("recipient", recipient));
-			l.add(new BasicNameValuePair("message",message));
+			l.add(new BasicNameValuePair("message", message));
 			l.add(new BasicNameValuePair("deadline", "1440"));
 			l.add(new BasicNameValuePair("messageIsText", "true"));
 			l.add(new BasicNameValuePair("publicKey", Hex.toHexString(public_key)));
@@ -718,6 +707,7 @@ public class CryptoUtil {
 		}
 	}
 
+	@SuppressWarnings("removal")
 	public static final SignumID[] getSignumTxID(CryptoNetwork nw, String address) throws Exception {
 		if (address == null || address.isBlank()) {
 			return new SignumID[0];

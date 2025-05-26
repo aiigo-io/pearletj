@@ -18,8 +18,8 @@ public class EtherAddressCellRenderer extends DefaultTableCellRenderer {
 	@Override
 	protected void setValue(Object value) {
 		JSONObject tx = (JSONObject) value;
-		String from_adr = tx.getString("from_address");
-		String to_adr = tx.getString("to_address");
+		String from_adr = tx.getJSONObject("from").getString("hash");
+		String to_adr = tx.getJSONObject("to").getString("hash");
 		if (from_adr.equals(address)) {
 			if (to_adr.isBlank()) {
 				super.setValue("<SELF>");

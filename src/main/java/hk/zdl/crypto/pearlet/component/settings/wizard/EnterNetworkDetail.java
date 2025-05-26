@@ -51,8 +51,8 @@ public class EnterNetworkDetail extends AbstractWizardPage {
 				new Font("Arial Black", Font.PLAIN, (int) (getFont().getSize() * 1.5))));
 		var burst_panel = new JPanel();
 		var eth_panel = new JPanel();
-		add(new JScrollPane(burst_panel), rsc_bdl.getString("SETTINGS.NETWORK.WIZARD.TYPE.BURST"));
-		add(new JScrollPane(eth_panel), rsc_bdl.getString("GENERAL.Ethereum"));
+		add(new JScrollPane(burst_panel), "Burst Variant");
+		add(new JScrollPane(eth_panel), "Ethereum");
 		var in_burst_panel = new JPanel(new GridLayout(0, 1));
 		burst_panel.add(in_burst_panel);
 		var in_eth_panel = new JPanel(new GridLayout(0, 1));

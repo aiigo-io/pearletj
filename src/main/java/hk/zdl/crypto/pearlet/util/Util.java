@@ -70,17 +70,17 @@ public class Util {
 		}
 		return text;
 	}
-	
+
 	public static final DateFormat getDateFormat() {
-		if(Locale.getDefault().toString().startsWith("zh_CN")) {
+		if (Locale.getDefault().toString().startsWith("zh_CN")) {
 			var sdf = new SimpleDateFormat("yyyy-MM-dd' 'HH:mm:ss", Locale.SIMPLIFIED_CHINESE);
 			sdf.setTimeZone(TimeZone.getTimeZone("GMT+8"));
 			return sdf;
-		}else {
+		} else {
 			return DateFormat.getDateTimeInstance();
 		}
 	}
-	
+
 	public static final ResourceBundle getResourceBundle() {
 		return ResourceBundle.getBundle("i18n.MessagesBundle");
 	}
@@ -123,7 +123,7 @@ public class Util {
 		}
 	}
 
-	public static final String get_icon_file_name(CryptoNetwork o,boolean isDark) {
+	public static final String get_icon_file_name(CryptoNetwork o, boolean isDark) {
 		if (o.getType() == CryptoNetwork.Type.WEB3J) {
 			return "ethereum-crypto-cryptocurrency-2-svgrepo-com.svg";
 		} else if (is_signum_server_address(o.getUrl())) {
@@ -136,8 +136,8 @@ public class Util {
 					var jobj = jarr.getJSONObject(i);
 					if (url.equals(jobj.getString("server url"))) {
 						var s = jobj.getString("icon");
-						if(isDark) {
-							s =  jobj.optString("icon_dark", s);
+						if (isDark) {
+							s = jobj.optString("icon_dark", s);
 						}
 						return s;
 					}
@@ -168,17 +168,15 @@ public class Util {
 
 	public static final <E> void viewContractDetail(CryptoNetwork nw, E e) throws Exception {
 		if (nw.isWeb3J()) {
-			var address = ((JSONObject) e).getString("contract_address");
-			if (!"0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee".equals(address)) {
-				browse(new URI("https://ethplorer.io/address/" + address + "#pageTab=issuances&tab=tab-issuances"));
-			}
+			var address = ((JSONObject) e).optString("contract_address");
+			browse(new URI("http://explorer.aiigo.org/api/v2/search?q=" + address));
 		}
 	}
 
 	public static final <E> void viewTxDetail(CryptoNetwork nw, E e) throws Exception {
 		if (nw.isWeb3J()) {
 			var tx = (JSONObject) e;
-			browse(new URI("https://www.blockchain.com/eth/tx/" + tx.getString("tx_hash")));
+			browse(new URI("http://explorer.aiigo.org/tx/" + tx.getString("hash")));
 		} else if (is_signum_server_address(nw.getUrl())) {
 			Transaction tx = (Transaction) e;
 			String tx_id = tx.getId().toString();
@@ -198,7 +196,7 @@ public class Util {
 
 	public static final void viewBlockDetail(CryptoNetwork nw, String block_id) throws Exception {
 		if (nw.isWeb3J()) {
-			browse(new URI("https://www.blockchain.com/eth/block/" + block_id));
+			browse(new URI("http://explorer.aiigo.org/block/" + block_id));
 		} else if (is_signum_server_address(nw.getUrl())) {
 			browse(new URI("https://chain.signum.network/block/" + block_id));
 		} else {
@@ -214,7 +212,7 @@ public class Util {
 
 	public static final void viewAccountDetail(CryptoNetwork nw, String e) throws Exception {
 		if (nw.isWeb3J()) {
-			browse(new URI("https://www.blockchain.com/eth/address/" + e));
+			browse(new URI("http://explorer.aiigo.org/address/" + e));
 		} else if (is_signum_server_address(nw.getUrl())) {
 			browse(new URI("https://chain.signum.network/address/" + e));
 		} else {
