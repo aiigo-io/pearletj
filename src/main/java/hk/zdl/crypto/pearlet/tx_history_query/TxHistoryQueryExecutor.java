@@ -1,8 +1,7 @@
 package hk.zdl.crypto.pearlet.tx_history_query;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -16,67 +15,47 @@ import hk.zdl.crypto.pearlet.ds.CryptoNetwork;
 
 public class TxHistoryQueryExecutor {
 
-	private final List<MyThread> threads = Collections.synchronizedList(new ArrayList<>());
+	private final ExecutorService es = Executors.newSingleThreadExecutor();
 
 	public TxHistoryQueryExecutor() {
 		EventBus.getDefault().register(this);
 	}
 
-	@SuppressWarnings("removal")
 	@Subscribe(threadMode = ThreadMode.ASYNC)
-	public synchronized void onMessage(AccountChangeEvent e) {
-		if (e.account == null)
+	public void onMessage(AccountChangeEvent e) {
+		if (e.account == null || e.account.isBlank())
 			return;
 		EventBus.getDefault().post(new TxHistoryEvent<>(e.network, TxHistoryEvent.Type.START, null));
-		for (MyThread t : threads) {
-			try {
-				t.stop();
-			} catch (Throwable x) {
-			}
-		}
-		threads.clear();
-		var t = new MyThread(e.network, e.account);
-		t.start();
-		threads.add(t);
+		es.submit(new MyWorker(e.network, e.account));
 	}
 
-	private final class MyThread extends Thread {
+	private final class MyWorker implements Runnable {
 		CryptoNetwork network;
 		String account;
 
-		public MyThread(CryptoNetwork network, String account) {
+		public MyWorker(CryptoNetwork network, String account) {
 			this.network = network;
 			this.account = account;
-			setPriority(MIN_PRIORITY);
-			setDaemon(true);
 		}
 
 		@Override
 		public void run() {
-			boolean is_finished = false;
 			if (account == null) {
-				is_finished = true;
+				return;
 			} else
 				try {
+					EventBus.getDefault().post(new TxHistoryEvent<>(network, TxHistoryEvent.Type.START, null));
 					if (network.isBurst()) {
 						new SignumTxHistoryQuery(network).queryTxHistory(account);
 					} else if (network.isWeb3J()) {
 						new EtherTxQuery(network).queryTxHistory(account);
 					}
-					is_finished = true;
 				} catch (Exception e) {
 					Logger.getLogger(getClass().getName()).log(Level.SEVERE, e.getMessage(), e);
-					is_finished = true;
+				} finally {
+					EventBus.getDefault().post(new TxHistoryEvent<>(network, TxHistoryEvent.Type.FINISH, null));
 				}
-			if (is_finished) {
-				send_finish_msg();
-			}
 		}
-
-		private void send_finish_msg() {
-			EventBus.getDefault().post(new TxHistoryEvent<>(network, TxHistoryEvent.Type.FINISH, null));
-		}
-
 		@Override
 		public String toString() {
 			StringBuilder builder = new StringBuilder();
