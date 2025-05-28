@@ -19,11 +19,9 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
-import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
@@ -35,8 +33,9 @@ import javax.swing.WindowConstants;
 import org.greenrobot.eventbus.EventBus;
 import org.java_websocket.util.Base64;
 import org.jdesktop.swingx.combobox.EnumComboBoxModel;
+import org.web3j.crypto.Bip32ECKeyPair;
+import org.web3j.crypto.Credentials;
 import org.web3j.crypto.MnemonicUtils;
-import org.web3j.crypto.WalletUtils;
 
 import hk.zdl.crypto.pearlet.component.account_settings.burst.PKT;
 import hk.zdl.crypto.pearlet.component.event.AccountListUpdateEvent;
@@ -162,55 +161,50 @@ public class CreateAccount {
 		Icon icon = UIUtil.getStretchIcon("icon/" + "cloud-plus-fill.svg", 64, 64);
 		var panel = new JPanel(new GridBagLayout());
 
-		var pw_label = new JLabel(rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE.INPUT_PW"));
-		var pw_field = new JPasswordField(20);
-		panel.add(pw_label, new GridBagConstraints(0, 0, 1, 1, 0, 0, 17, 1, insets_5, 0, 0));
-		panel.add(pw_field, new GridBagConstraints(1, 0, 1, 1, 0, 0, 17, 1, insets_5, 0, 0));
-
 		var mm_label = new JLabel(rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE.INPUT_MNC"));
-		var tx_field = new JTextArea(5, 20);
-		var sc_panee = new JScrollPane(tx_field, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		var text_area = new JTextArea(5, 30);
+		var scr_pane = new JScrollPane(text_area, ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
 		panel.add(mm_label, new GridBagConstraints(0, 1, 1, 1, 0, 0, 17, 1, insets_5, 0, 0));
-		panel.add(sc_panee, new GridBagConstraints(0, 2, 2, 1, 0, 0, 17, 1, insets_5, 0, 0));
-		Util.submit(() -> tx_field.setText(get_mnemoic()));
+		panel.add(scr_pane, new GridBagConstraints(0, 2, 2, 1, 0, 0, 17, 1, insets_5, 0, 0));
+		Util.submit(() -> text_area.setText(get_mnemoic()));
 
 		var i = JOptionPane.showConfirmDialog(w, panel, rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE.TITLE"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, icon);
 		if (i == JOptionPane.CANCEL_OPTION) {
 			return;
 		} else if (i == JOptionPane.OK_OPTION) {
-			if (tx_field.getText().isBlank()) {
+			var mnemonic = text_area.getText().trim();
+			if (mnemonic.isBlank()) {
 				JOptionPane.showMessageDialog(w, rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE.REQUIRE_MNC"), rsc_bdl.getString("GENERAL.ERROR"), JOptionPane.ERROR_MESSAGE);
 				return;
 			}
-			var file_dialog = new JFileChooser();
-			file_dialog.setDialogType(JFileChooser.SAVE_DIALOG);
-			file_dialog.setDialogTitle(rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE.SAVE_TO"));
-			file_dialog.setMultiSelectionEnabled(false);
-			file_dialog.setDragEnabled(false);
-			file_dialog.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-			i = file_dialog.showSaveDialog(w);
-			if (i != JFileChooser.APPROVE_OPTION) {
-				return;
-			}
 			try {
-				WalletUtils.generateBip39WalletFromMnemonic(new String(pw_field.getPassword()), tx_field.getText().trim(), file_dialog.getSelectedFile());
-			} catch (Exception e) {
-				JOptionPane.showMessageDialog(w, e.getMessage(), e.getClass().getSimpleName(), JOptionPane.ERROR_MESSAGE);
-				return;
-			}
-			var cred = WalletUtils.loadBip39Credentials(new String(pw_field.getPassword()), tx_field.getText().trim());
+				// 生成BIP-39种子（与 load_from_mnemonic 保持一致）
+				byte[] seed = MnemonicUtils.generateSeed(mnemonic, "");
 
-			try {
+				// 使用BIP-32路径派生密钥对（与 load_from_mnemonic 路径一致）
+				int[] path = { 
+					44 | Bip32ECKeyPair.HARDENED_BIT,  // 44' (purpose)
+					60 | Bip32ECKeyPair.HARDENED_BIT,  // 60' (coin type)
+					0 | Bip32ECKeyPair.HARDENED_BIT,   // 0' (account)
+					0,                                 // 0 (change)
+					0                                  // 0 (address index)
+				};
+				Bip32ECKeyPair masterKeyPair = Bip32ECKeyPair.generateKeyPair(seed);
+				Bip32ECKeyPair derivedKeyPair = Bip32ECKeyPair.deriveKeyPair(masterKeyPair, path);
+
+				// 直接使用派生的密钥对创建凭证
+				var cred = Credentials.create(derivedKeyPair);
+
 				if (WalletUtil.insert_web3j_account(nw, cred.getEcKeyPair())) {
 					UIUtil.displayMessage(rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE.TITLE"), rsc_bdl.getString("GENERAL.DONE"));
 					EventBus.getDefault().post(new AccountListUpdateEvent());
 				} else {
 					JOptionPane.showMessageDialog(w, rsc_bdl.getString("GENERAL.DUP"), rsc_bdl.getString("GENERAL.ERROR"), JOptionPane.ERROR_MESSAGE);
 				}
-			} catch (Exception x) {
-				JOptionPane.showMessageDialog(w, x.getMessage(), x.getClass().getSimpleName(), JOptionPane.ERROR_MESSAGE);
+			} catch (Exception e) {
+				JOptionPane.showMessageDialog(w, e.getMessage(), e.getClass().getSimpleName(), JOptionPane.ERROR_MESSAGE);
+				return;
 			}
-
 		}
 	}
 }

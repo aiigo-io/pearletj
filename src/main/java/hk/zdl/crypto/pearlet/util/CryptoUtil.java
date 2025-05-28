@@ -21,11 +21,10 @@ import org.bouncycastle.util.encoders.Hex;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
+import org.web3j.contracts.eip20.generated.ERC20;
 import org.web3j.crypto.WalletUtils;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterName;
-import org.web3j.protocol.core.DefaultBlockParameterNumber;
-import org.web3j.protocol.core.methods.response.EthTransaction;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.utils.Convert;
 
@@ -49,6 +48,8 @@ import signumj.entity.response.FeeSuggestion;
 import signumj.entity.response.Transaction;
 import signumj.entity.response.http.BRSError;
 import signumj.service.NodeService;
+import org.web3j.tx.gas.DefaultGasProvider;
+import org.web3j.crypto.Credentials;
 
 public class CryptoUtil {
 
@@ -295,22 +296,22 @@ public class CryptoUtil {
 	}
 
 	public static JSONArray getTxHistory(String address, int page_number, int page_size) throws Exception {
-	    var client = WebUtil.getHttpclient();
-	    var url = "http://explorer.aiigo.org/api/v2/addresses/" + address + "/transactions?page=" + page_number + "&page_size=" + page_size;
-	    var httpGet = new HttpGet(url);
-	    
-	    try (var response = client.execute(httpGet)) {
-	        var entity = response.getEntity();
-	        if (response.getStatusLine().getStatusCode() != 200) {
-	            throw new IOException("HTTP error: " + response.getStatusLine());
-	        }
-	        
-	        var json = new JSONObject(new JSONTokener(entity.getContent()));
-	        return json.getJSONArray("items");
-	        
-	    } finally {
-	        httpGet.releaseConnection();
-	    }
+		var client = WebUtil.getHttpclient();
+		var url = "http://explorer.aiigo.org/api/v2/addresses/" + address + "/transactions?page=" + page_number + "&page_size=" + page_size;
+		var httpGet = new HttpGet(url);
+
+		try (var response = client.execute(httpGet)) {
+			var entity = response.getEntity();
+			if (response.getStatusLine().getStatusCode() != 200) {
+				throw new IOException("HTTP error: " + response.getStatusLine());
+			}
+
+			var json = new JSONObject(new JSONTokener(entity.getContent()));
+			return json.getJSONArray("items");
+
+		} finally {
+			httpGet.releaseConnection();
+		}
 	}
 
 	public static byte[] generateTransferAssetTransaction(CryptoNetwork nw, byte[] senderPublicKey, String recipient, String assetId, BigDecimal quantity, BigDecimal fee) throws Exception {
@@ -776,8 +777,21 @@ public class CryptoUtil {
 				}
 
 			}
+		} else if (network.isWeb3J()) { // 添加Web3J网络支持
+			// 以太坊默认小数位数为18（ETH/ERC20通用）
+			return new JSONObject().put("decimalPlaces", 18);
 		}
-		throw new UnsupportedOperationException();
+		throw new UnsupportedOperationException("Unsupported network type: " + network.getType());
+	}
+
+	public static int getTokenDecimals(CryptoNetwork network, String tokenAddress) throws Exception {
+		if (network.isWeb3J()) {
+			Web3j web3j = getWeb3j().orElseThrow(() -> new IOException("Web3j client not initialized"));
+			Credentials credentials = null;
+			ERC20 erc20 = ERC20.load(tokenAddress, web3j, credentials, new DefaultGasProvider());
+			return erc20.decimals().send().intValue();
+		}
+		throw new UnsupportedOperationException("Unsupported network type: " + network.getType());
 	}
 
 	public static final synchronized JSONObject getBlockchainStatus(CryptoNetwork network) throws Exception {
@@ -799,12 +813,26 @@ public class CryptoUtil {
 	public static final synchronized FeeSuggestion getFeeSuggestion(CryptoNetwork network) {
 		if (fee_cache.containsKey(network)) {
 			return fee_cache.get(network);
-		} else {
-			var ns = NodeService.getInstance(network.getUrl());
-			var f = ns.suggestFee().blockingGet();
-			fee_cache.put(network, f);
-			return f;
+		} else if (network.isWeb3J()) { // Web3J 网络支持
+			try {
+				Web3j web3 = getWeb3j().orElseThrow(() -> new IOException("Web3j client not initialized"));
+				BigInteger gasPriceWei = web3.ethGasPrice().send().getGasPrice(); // 获取当前 Gas 价格（Wei）
+
+				// 计算低/标准/高手续费（单位：Wei，需转换为 SignumValue 兼容的最小单位）
+				// 注意：以太坊最小单位是 Wei，与 Signum 的 NQT 类似，直接使用 gasPriceWei 构造 SignumValue
+				SignumValue cheapFee = SignumValue.fromNQT(gasPriceWei.multiply(BigInteger.valueOf(80)).divide(BigInteger.valueOf(100))); // 80% 当前价
+				SignumValue standardFee = SignumValue.fromNQT(gasPriceWei); // 当前价
+				SignumValue priorityFee = SignumValue.fromNQT(gasPriceWei.multiply(BigInteger.valueOf(120)).divide(BigInteger.valueOf(100))); // 120% 当前价
+
+				FeeSuggestion fee = new FeeSuggestion(cheapFee, standardFee, priorityFee); // 使用 SignumValue 构造
+				fee_cache.put(network, fee);
+				return fee;
+			} catch (Exception e) {
+				throw new RuntimeException("获取 Web3J 手续费建议失败", e);
+			}
 		}
+		throw new UnsupportedOperationException("不支持的网络类型: " + network.getType());
+
 	}
 
 	public static final byte[] setRewardRecipient(CryptoNetwork network, String account, byte[] public_key, String recipient, BigDecimal fee) throws Exception {

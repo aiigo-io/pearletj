@@ -16,7 +16,6 @@ import java.awt.event.KeyListener;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.net.SocketTimeoutException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -132,7 +131,7 @@ public class SendPanel extends JPanel {
 		Stream.of(fee_field, fee_slider).forEach(fee_panel::add);
 		fee_field.setEditable(false);
 		fee_slider.addChangeListener(e -> fee_field.setText(new BigDecimal(fee_slider.getValue()).movePointLeft(decimalPlaces).toPlainString()));
-		panel_1.add(fee_panel, newGridConst(0, 7, 5));
+		panel_1.add(fee_panel, newGridConst(0, 7, 5, 17));
 
 		var panel_3 = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
 		var msg_chk_box = new JCheckBox(rsc_bdl.getString("SEND_PANEL.ADDMSG"));
@@ -366,17 +365,19 @@ public class SendPanel extends JPanel {
 				Util.submit(() -> {
 					decimalPlaces = CryptoUtil.getConstants(network).getInt("decimalPlaces");
 					var g = CryptoUtil.getFeeSuggestion(network);
-					fee_slider.setMinimum(g.getCheapFee().toNQT().intValue());
-					fee_slider.setMaximum(g.getPriorityFee().toNQT().intValue());
-					fee_slider.setValue(g.getStandardFee().toNQT().intValue());
+					// 将滑动条属性设置操作放到 EDT 中执行
+					SwingUtilities.invokeLater(() -> {
+					    fee_slider.setMinimum(g.getCheapFee().toNQT().intValue());
+					    fee_slider.setMaximum(g.getPriorityFee().toNQT().intValue());
+					    fee_slider.setValue(g.getStandardFee().toNQT().intValue());
+					});
 					return null;
 				});
 			}
 			Util.submit(() -> {
 				try {
 					update_balance();
-				} catch (RuntimeException | SocketTimeoutException | InterruptedException | ThreadDeath x) {
-				} catch (Exception x) {
+				} catch (Throwable x) {
 					Logger.getLogger(getClass().getName()).log(Level.SEVERE, x.getMessage(), x);
 				} finally {
 					wuli.stop();
@@ -389,7 +390,7 @@ public class SendPanel extends JPanel {
 				send_btn.setEnabled(false);
 			}
 		}
-		Stream.of(panel_2, fee_panel, fee_label).forEach(c -> c.setVisible(network.isBurst()));
+		panel_2.setVisible(network.isBurst());
 	}
 
 	private final void update_balance() throws Exception {
