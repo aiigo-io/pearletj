@@ -59,7 +59,7 @@ import hk.zdl.crypto.pearlet.component.event.AccountChangeEvent;
 import hk.zdl.crypto.pearlet.component.event.BalanceUpdateEvent;
 import hk.zdl.crypto.pearlet.ds.CryptoNetwork;
 import hk.zdl.crypto.pearlet.persistence.MyDb;
-import hk.zdl.crypto.pearlet.tx.SendTx;
+import hk.zdl.crypto.pearlet.tx.SendTxFactory;
 import hk.zdl.crypto.pearlet.ui.SpinableIcon;
 import hk.zdl.crypto.pearlet.ui.UIUtil;
 import hk.zdl.crypto.pearlet.ui.WaitLayerUI;
@@ -265,7 +265,7 @@ public class SendPanel extends JPanel {
 				}
 			}
 
-			var send_tx = new SendTx(network, account, rcv_field.getText(), amount, new BigDecimal(fee_field.getText()), asset_id);
+			var send_tx = SendTxFactory.createSendTx(network, account, rcv_field.getText(), amount, new BigDecimal(fee_field.getText()), asset_id);
 			if (msg_chk_box.isSelected()) {
 				send_tx.setEncrypted(eny_msg_menu_item.isSelected());
 				if (plain_text_option_menu_item.isSelected()) {

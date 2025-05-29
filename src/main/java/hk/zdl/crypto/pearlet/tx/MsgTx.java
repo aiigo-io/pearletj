@@ -31,7 +31,7 @@ public class MsgTx implements Callable<Boolean> {
 		if (o_r.isPresent()) {
 			byte[] public_key = o_r.get().getPublicKey();
 			byte[] private_key = o_r.get().getPrivateKey();
-			var tx = CryptoUtil.sendMessage(network, to, public_key, str_message,fee);
+			var tx = CryptoUtil.sendMessage(network, to, public_key, str_message, fee);
 			byte[] signed_tx = CryptoUtil.signTransaction(network, private_key, tx);
 
 			Object obj = CryptoUtil.broadcastTransaction(network, signed_tx);
