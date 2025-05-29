@@ -390,7 +390,7 @@ public class SendPanel extends JPanel {
 				send_btn.setEnabled(false);
 			}
 		}
-		panel_2.setVisible(network.isBurst());
+		Stream.of(panel_2, fee_panel, fee_label).forEach(c -> c.setVisible(network.isBurst()));
 	}
 
 	private final void update_balance() throws Exception {

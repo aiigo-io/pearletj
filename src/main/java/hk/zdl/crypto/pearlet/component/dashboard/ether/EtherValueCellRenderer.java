@@ -17,7 +17,7 @@ import com.jthemedetecor.OsThemeDetector;
 public class EtherValueCellRenderer extends DefaultTableCellRenderer {
 
 	private static final OsThemeDetector otd = OsThemeDetector.getDetector();
-	private static final Color my_cyan = new Color(0, 175, 175), my_green = new Color(175, 255, 175);
+	private static final Color my_cyan = new Color(0, 175, 175), my_lime = new Color(175, 255, 175);
 	private final String address;
 
 	public EtherValueCellRenderer(String address) {
@@ -31,8 +31,8 @@ public class EtherValueCellRenderer extends DefaultTableCellRenderer {
 		setBackground(isDark ? darker(my_cyan) : my_cyan);
 		if (!isSelected) {
 			var tx = (JSONObject) value;
-			if (tx.getJSONObject("to").getString("hash").equals(address)) {
-				setBackground(isDark ? darker(my_green) : my_green);
+			if (tx.getJSONObject("to").getString("hash").equalsIgnoreCase(address)) {
+				setBackground(isDark ? darker(my_lime) : my_lime);
 			} else {
 				setBackground(isDark ? darker(Color.pink) : Color.pink);
 			}

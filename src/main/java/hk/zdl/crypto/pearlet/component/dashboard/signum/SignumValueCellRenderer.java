@@ -22,7 +22,7 @@ import signumj.response.attachment.CommitmentRemoveAttachment;
 public class SignumValueCellRenderer extends DefaultTableCellRenderer {
 
 	private static final OsThemeDetector otd = OsThemeDetector.getDetector();
-	private static final Color my_cyan = new Color(0, 175, 175), my_green = new Color(175, 255, 175);
+	private static final Color my_cyan = new Color(0, 175, 175), my_lime = new Color(175, 255, 175);
 	private final String address;
 	private Optional<Integer> decimalPlaces = Optional.empty();
 
@@ -45,7 +45,7 @@ public class SignumValueCellRenderer extends DefaultTableCellRenderer {
 			Transaction tx = (Transaction) value;
 			if (tx.getType() == 0 || (tx.getType() == 2 && tx.getSubtype() == 1)) {// Payment
 				if (tx.getRecipient() != null && tx.getRecipient().getRawAddress().equals(address.substring(address.indexOf('-') + 1))) {
-					setBackground(isDark ? darker(my_green) : my_green);
+					setBackground(isDark ? darker(my_lime) : my_lime);
 				} else {
 					setBackground(isDark ? darker(Color.pink) : Color.pink);
 				}
