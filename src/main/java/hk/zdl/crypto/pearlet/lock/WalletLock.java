@@ -25,8 +25,10 @@ import hk.zdl.crypto.pearlet.component.event.WalletTimerEvent;
 import hk.zdl.crypto.pearlet.persistence.MyDb;
 import hk.zdl.crypto.pearlet.ui.UIUtil;
 import hk.zdl.crypto.pearlet.util.Util;
+import java.util.ResourceBundle; // 新增导入
 
 public class WalletLock {
+    private static final ResourceBundle rsc_bdl = Util.getResourceBundle(); // 已存在的资源绑定
 
 	public static final String AUTO_LOCK_MIN = "AUTO_LOCK_MIN";
 	public static final int MIN_PW_LEN = 8;
@@ -43,9 +45,11 @@ public class WalletLock {
 	public static boolean change_password() throws Exception {
 		var pw_field = new JPasswordField[] { new JPasswordField(), new JPasswordField(), new JPasswordField() };
 		if (LockImpl.hasPassword()) {
-			if (UIUtil.show_password_dialog("Old password:", frame, pw_field[0])) {
+			// 替换旧密码提示为国际化资源
+			if (UIUtil.show_password_dialog(rsc_bdl.getString("WALLET_LOCK.OLD_PASSWORD_PROMPT"), frame, pw_field[0])) {
 				if (!LockImpl.validete_password(pw_field[0].getPassword())) {
-					JOptionPane.showMessageDialog(frame, "Wrong Password!", null, JOptionPane.ERROR_MESSAGE);
+					// 替换硬编码字符串为国际化资源
+					JOptionPane.showMessageDialog(frame, rsc_bdl.getString("WALLET_LOCK.WRONG_PASSWORD"), null, JOptionPane.ERROR_MESSAGE);
 					return false;
 				}
 			} else {
@@ -54,19 +58,23 @@ public class WalletLock {
 		} else {
 			pw_field[0] = null;
 		}
-		if (UIUtil.show_password_dialog("New password:", frame, pw_field[1])) {
+		// 替换新密码提示为国际化资源
+		if (UIUtil.show_password_dialog(rsc_bdl.getString("WALLET_LOCK.NEW_PASSWORD_PROMPT"), frame, pw_field[1])) {
 			if (pw_field[1].getPassword().length < MIN_PW_LEN) {
-				JOptionPane.showMessageDialog(frame, "Password must be at least " + MIN_PW_LEN + " characters!", null, JOptionPane.ERROR_MESSAGE);
+				// 替换带参数的提示为国际化资源
+				JOptionPane.showMessageDialog(frame, String.format(rsc_bdl.getString("WALLET_LOCK.PASSWORD_TOO_SHORT"), MIN_PW_LEN), null, JOptionPane.ERROR_MESSAGE);
 				return false;
 			} else if (UIUtil.show_password_dialog("Re-type new password:", frame, pw_field[2])) {
 				if (!Arrays.equals(pw_field[1].getPassword(), pw_field[2].getPassword())) {
-					JOptionPane.showMessageDialog(frame, "Password Mismatch!", null, JOptionPane.ERROR_MESSAGE);
+					// 替换硬编码字符串为国际化资源
+					JOptionPane.showMessageDialog(frame, rsc_bdl.getString("WALLET_LOCK.PASSWORD_MISMATCH"), null, JOptionPane.ERROR_MESSAGE);
 					return false;
 				} else {
 					var d = new JDialog(frame);
 					SwingUtilities.invokeLater(() -> {
 						var bar = new JProgressBar();
-						bar.setString("In Progress...");
+						// 替换进度提示为国际化资源
+						bar.setString(rsc_bdl.getString("WALLET_LOCK.PROGRESS_MESSAGE"));
 						bar.setPreferredSize(new Dimension(500, 50));
 						bar.setIndeterminate(true);
 						d.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
@@ -93,7 +101,8 @@ public class WalletLock {
 			return Optional.of(true);
 		}
 		var pw_field = new JPasswordField();
-		if (UIUtil.show_password_dialog("Enter Password:", frame, pw_field)) {
+		// 替换解锁时的密码输入提示为国际化资源
+		if (UIUtil.show_password_dialog(rsc_bdl.getString("WALLET_LOCK.ENTER_PASSWORD_PROMPT"), frame, pw_field)) {
 			if (LockImpl.validete_password(pw_field.getPassword())) {
 				var i = Util.getUserSettings().getInt(WalletLock.AUTO_LOCK_MIN, -1);
 				if (i > 0) {
@@ -164,7 +173,8 @@ public class WalletLock {
 					EventBus.getDefault().post(new WalletTimerEvent(0, 100));
 					EventBus.getDefault().post(new WalletLockEvent(WalletLockEvent.Type.LOCK));
 					timer.cancel();
-					UIUtil.displayMessage("Wallet is locked!", "");
+					// 替换硬编码字符串为国际化资源
+					UIUtil.displayMessage(rsc_bdl.getString("WALLET_LOCK.LOCKED_MESSAGE"), "");
 				}
 			}
 		};

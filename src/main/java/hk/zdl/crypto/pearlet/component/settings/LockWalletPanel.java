@@ -48,9 +48,11 @@ public class LockWalletPanel extends JPanel implements ActionListener {
 		setLayout(new FlowLayout());
 		var panel = new JPanel(new GridLayout(0, 1));
 		var panel_1 = new JPanel(new GridBagLayout());
-		panel_1.add(new JLabel(rsc_bdl.getString("SETTINGS.LOCK.NOW_STATE")), new GridBagConstraints(0, 0, 1, 1, 1, 0, GridBagConstraints.CENTER, GridBagConstraints.HORIZONTAL, new Insets(5, 5, 5, 5), 2, 2));
+		panel_1.add(new JLabel(rsc_bdl.getString("SETTINGS.LOCK.NOW_STATE")),
+				new GridBagConstraints(0, 0, 1, 1, 1, 0, GridBagConstraints.CENTER, GridBagConstraints.HORIZONTAL, new Insets(5, 5, 5, 5), 2, 2));
 		panel_1.add(t_btn, new GridBagConstraints(1, 0, 1, 1, 0, 0, GridBagConstraints.EAST, GridBagConstraints.HORIZONTAL, new Insets(5, 5, 5, 5), 2, 2));
-		panel_1.add(new JLabel(rsc_bdl.getString("SETTINGS.LOCK.COUNT_DOWN")), new GridBagConstraints(0, 1, 1, 1, 1, 0, GridBagConstraints.CENTER, GridBagConstraints.HORIZONTAL, new Insets(5, 5, 5, 5), 2, 2));
+		panel_1.add(new JLabel(rsc_bdl.getString("SETTINGS.LOCK.COUNT_DOWN")),
+				new GridBagConstraints(0, 1, 1, 1, 1, 0, GridBagConstraints.CENTER, GridBagConstraints.HORIZONTAL, new Insets(5, 5, 5, 5), 2, 2));
 		panel_1.add(box, new GridBagConstraints(1, 1, 1, 1, 0, 0, GridBagConstraints.EAST, GridBagConstraints.HORIZONTAL, new Insets(5, 5, 5, 5), 2, 2));
 		panel_1.add(chg_pwd_btn, new GridBagConstraints(0, 2, 2, 1, 1, 0, GridBagConstraints.CENTER, GridBagConstraints.HORIZONTAL, new Insets(5, 5, 5, 5), 2, 2));
 		panel.add(panel_1);
@@ -65,7 +67,7 @@ public class LockWalletPanel extends JPanel implements ActionListener {
 			});
 		});
 		chg_pwd_btn.addActionListener(e -> {
-			Util.submit(()->{
+			Util.submit(() -> {
 				try {
 					WalletLock.change_password();
 				} catch (Exception x) {
@@ -135,15 +137,15 @@ public class LockWalletPanel extends JPanel implements ActionListener {
 		public String toString() {
 			switch (this) {
 			case HALF_HOUR:
-				return "30 min.";
+				return rsc_bdl.getString("SETTINGS.LOCK.HALF_HOUR");
 			case NEVER:
-				return "Never";
+				return rsc_bdl.getString("SETTINGS.LOCK.NEVER");
 			case ONE_MINUTE:
-				return "1 min.";
+				return rsc_bdl.getString("SETTINGS.LOCK.ONE_MINUTE");
 			case QUARTER:
-				return "15 min.";
+				return rsc_bdl.getString("SETTINGS.LOCK.QUARTER");
 			case TEN_MINUTE:
-				return "10 min.";
+				return rsc_bdl.getString("SETTINGS.LOCK.TEN_MINUTE");
 			}
 			return "";
 		}
