@@ -18,6 +18,7 @@ import java.awt.event.KeyListener;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -279,7 +280,13 @@ public class SendPanel extends JPanel {
 				if (o instanceof JSONObject) {
 					var jobj = (JSONObject) o;
 					asset_id = jobj.getString("contract_address");
-					amount = amount.movePointRight(jobj.getInt("contract_decimals"));
+					int decimals = jobj.getInt("contract_decimals");
+					// 添加余额验证
+					BigDecimal balance = new BigDecimal(jobj.getString("balance")).movePointLeft(decimals);
+					if (amount.compareTo(balance) > 0) {
+						JOptionPane.showMessageDialog(getRootPane(), rsc_bdl.getString("SEND_PANEL.INSUFFICIENT_BALANCE"), rsc_bdl.getString("GENERAL.ERROR"), JOptionPane.ERROR_MESSAGE);
+						return;
+					}
 				}
 			}
 

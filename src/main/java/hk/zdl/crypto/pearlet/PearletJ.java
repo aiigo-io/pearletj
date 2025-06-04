@@ -52,7 +52,7 @@ public class PearletJ {
 			var msg = x.getLocalizedMessage();
 			if (x.getClass().equals(StandardException.class)) {
 				if (((StandardException) x).getSQLState().equals("XSDB6")) {
-					msg = "Cannot run multi instances concurrently!";
+					msg = Util.getResourceBundle().getString("ERR.MULTI_INSTANCE");
 				}
 			}
 			var pane = new JOptionPane(msg, JOptionPane.ERROR_MESSAGE);
@@ -72,10 +72,14 @@ public class PearletJ {
 	}
 
 	private static void clear_password() {
-		var i = JOptionPane.showConfirmDialog(null, "Are you sure to clear password?", "Clear Password", JOptionPane.OK_CANCEL_OPTION);
+		var rsc_bdl = Util.getResourceBundle();
+		var i = JOptionPane.showConfirmDialog(null, 
+			rsc_bdl.getString("MSG.CONFIRM_CLEAR_PW"), 
+			rsc_bdl.getString("TITLE.CLEAR_PW"), 
+			JOptionPane.OK_CANCEL_OPTION);
 		if (i == JOptionPane.OK_OPTION) {
 			LockImpl.clear_password();
-			JOptionPane.showMessageDialog(null, "Password is clear.");
+			JOptionPane.showMessageDialog(null, rsc_bdl.getString("MSG.PW_CLEARED"));
 		}
 	}
 

@@ -43,7 +43,6 @@ public class TranscationPanel extends JPanel {
 	private final TxTableModel table_model = new TxTableModel();
 	private final TableColumnModel table_column_model = new DefaultTableColumnModel();
 	private final JTable table = new JTable(table_model, table_column_model);
-	private boolean refresh_lock = false;
 	private long _last_table_update;
 	private CryptoNetwork network;
 	private String account;
@@ -51,19 +50,6 @@ public class TranscationPanel extends JPanel {
 	public TranscationPanel() {
 		super(new BorderLayout());
 		EventBus.getDefault().register(this);
-		if (System.getProperty("os.name").toLowerCase().contains("mac")) {
-			getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.META_DOWN_MASK), "macRefresh");
-			getActionMap().put("macRefresh", new AbstractAction() {
-				@Override
-				public void actionPerformed(ActionEvent e) {
-					if (network != null && account != null) {
-						if (!refresh_lock) {
-							EventBus.getDefault().post(new AccountChangeEvent(network, account));
-						}
-					}
-				}
-			});
-		}
 		add(jlayer, BorderLayout.CENTER);
 		for (int i = 0; i < table_model.getColumnCount(); i++) {
 			var tc = new TableColumn(i, 0);
@@ -102,7 +88,7 @@ public class TranscationPanel extends JPanel {
 	public void onMessage(AccountChangeEvent e) {
 		this.network = e.network;
 		this.account = e.account;
-		if (network == null || e.account == null || e.account.isBlank()) {
+		if (network == null || account == null || account.isBlank()) {
 			return;
 		}
 		new TxProc().update_column_model(e.network, table_column_model, e.account);
@@ -114,12 +100,10 @@ public class TranscationPanel extends JPanel {
 		switch (e.type) {
 		case START:
 			wuli.start();
-			refresh_lock = false;
 			table_model.clearData();
 			break;
 		case FINISH:
 			wuli.stop();
-			refresh_lock = true;
 			break;
 		case INSERT:
 			Object o = e.data;

@@ -5,13 +5,22 @@ import java.awt.Dimension;
 import java.awt.Image;
 import java.awt.Taskbar;
 import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
+import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
 import javax.swing.BorderFactory;
+import javax.swing.InputMap;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
+import javax.swing.JRootPane;
+import javax.swing.KeyStroke;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -23,10 +32,12 @@ import com.formdev.flatlaf.util.SystemInfo;
 import hk.zdl.crypto.pearlet.MainFrameSwitch;
 import hk.zdl.crypto.pearlet.MyToolbar;
 import hk.zdl.crypto.pearlet.component.blocks.BlocksPanel;
+import hk.zdl.crypto.pearlet.component.event.AccountChangeEvent;
 import hk.zdl.crypto.pearlet.component.event.WalletTimerEvent;
 import hk.zdl.crypto.pearlet.component.miner.MinerPanel;
 import hk.zdl.crypto.pearlet.component.plot.PlotPanel;
 import hk.zdl.crypto.pearlet.component.settings.SettingsPanel;
+import hk.zdl.crypto.pearlet.ds.CryptoNetwork;
 import hk.zdl.crypto.pearlet.lock.WalletLock;
 import hk.zdl.crypto.pearlet.misc.IndepandentWindows;
 import hk.zdl.crypto.pearlet.ui.UIUtil;
@@ -42,6 +53,8 @@ public class MainFrame extends JFrame {
 	private JProgressBar bar = new JProgressBar();
 	private MainFrameSwitch mfs = new MainFrameSwitch(panel2);
 	private MyToolbar toolbar = new MyToolbar(mfs);
+	private CryptoNetwork network;
+	private String account;
 
 	public MainFrame(String appName, Image app_icon) {
 		super(appName);
@@ -108,6 +121,28 @@ public class MainFrame extends JFrame {
 		}
 		WalletLock.setFrame(this);
 		IndepandentWindows.add(this);
+		
+		// 添加全局热键监听
+		if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+		    JRootPane rootPane = getRootPane();
+		    InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+		    ActionMap actionMap = rootPane.getActionMap();
+		    
+		    KeyStroke refreshKey = KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.META_DOWN_MASK);
+		    inputMap.put(refreshKey, "globalMacRefresh");
+		    actionMap.put("globalMacRefresh", new AbstractAction() {
+		        @Override
+		        public void actionPerformed(ActionEvent e) {
+		            EventBus.getDefault().post(new AccountChangeEvent(network, account));
+		        }
+		    });
+		}
+	}
+
+	@Subscribe(threadMode = ThreadMode.ASYNC)
+	public void onMessage(AccountChangeEvent e) {
+		this.network = e.network;
+		this.account = e.account;
 	}
 
 	@Subscribe(threadMode = ThreadMode.ASYNC)
