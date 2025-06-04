@@ -28,13 +28,16 @@ public class EtherValueCellRenderer extends DefaultTableCellRenderer {
 	@Override
 	public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
 		boolean isDark = otd.isDark();
-		setBackground(isDark ? darker(my_cyan) : my_cyan);
 		if (!isSelected) {
 			var tx = (JSONObject) value;
-			if (tx.getJSONObject("to").getString("hash").equalsIgnoreCase(address)) {
-				setBackground(isDark ? darker(my_lime) : my_lime);
+			if (tx.getJSONObject("from").getString("hash").equalsIgnoreCase(address)) {
+				if (tx.optInt("type") == 0) {
+					setBackground(isDark ? darker(Color.pink) : Color.pink);
+				} else {
+					setBackground(isDark ? darker(my_cyan) : my_cyan);
+				}
 			} else {
-				setBackground(isDark ? darker(Color.pink) : Color.pink);
+				setBackground(isDark ? darker(my_lime) : my_lime);
 			}
 		}
 		return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
@@ -43,7 +46,7 @@ public class EtherValueCellRenderer extends DefaultTableCellRenderer {
 	@Override
 	protected void setValue(Object value) {
 		var tx = (JSONObject) value;
-		var val = Convert.fromWei(new BigDecimal(tx.getString("value")),Convert.Unit.ETHER);
+		var val = Convert.fromWei(new BigDecimal(tx.getString("value")), Convert.Unit.ETHER);
 		setText(val.stripTrailingZeros().toPlainString());
 	}
 

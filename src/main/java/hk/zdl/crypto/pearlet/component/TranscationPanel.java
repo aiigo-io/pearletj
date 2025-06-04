@@ -3,15 +3,20 @@ package hk.zdl.crypto.pearlet.component;
 import java.awt.BorderLayout;
 import java.awt.Font;
 import java.awt.Point;
+import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.swing.AbstractAction;
 import javax.swing.JLayer;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableColumnModel;
@@ -38,12 +43,27 @@ public class TranscationPanel extends JPanel {
 	private final TxTableModel table_model = new TxTableModel();
 	private final TableColumnModel table_column_model = new DefaultTableColumnModel();
 	private final JTable table = new JTable(table_model, table_column_model);
+	private boolean refresh_lock = false;
 	private long _last_table_update;
-	private CryptoNetwork nw;
+	private CryptoNetwork network;
+	private String account;
 
 	public TranscationPanel() {
 		super(new BorderLayout());
 		EventBus.getDefault().register(this);
+		if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+			getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.META_DOWN_MASK), "macRefresh");
+			getActionMap().put("macRefresh", new AbstractAction() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					if (network != null && account != null) {
+						if (!refresh_lock) {
+							EventBus.getDefault().post(new AccountChangeEvent(network, account));
+						}
+					}
+				}
+			});
+		}
 		add(jlayer, BorderLayout.CENTER);
 		for (int i = 0; i < table_model.getColumnCount(); i++) {
 			var tc = new TableColumn(i, 0);
@@ -69,7 +89,7 @@ public class TranscationPanel extends JPanel {
 				int row = table.rowAtPoint(point);
 				if (mouseEvent.getClickCount() == 2 && row >= 0 & row == table.getSelectedRow()) {
 					try {
-						Util.viewTxDetail(nw, table_model.getValueAt(row, 0));
+						Util.viewTxDetail(network, table_model.getValueAt(row, 0));
 					} catch (Exception x) {
 						Logger.getLogger(getClass().getName()).log(Level.WARNING, x.getMessage(), x);
 					}
@@ -80,8 +100,9 @@ public class TranscationPanel extends JPanel {
 
 	@Subscribe(threadMode = ThreadMode.ASYNC)
 	public void onMessage(AccountChangeEvent e) {
-		this.nw = e.network;
-		if (nw == null || e.account == null || e.account.isBlank()) {
+		this.network = e.network;
+		this.account = e.account;
+		if (network == null || e.account == null || e.account.isBlank()) {
 			return;
 		}
 		new TxProc().update_column_model(e.network, table_column_model, e.account);
@@ -93,10 +114,12 @@ public class TranscationPanel extends JPanel {
 		switch (e.type) {
 		case START:
 			wuli.start();
+			refresh_lock = false;
 			table_model.clearData();
 			break;
 		case FINISH:
 			wuli.stop();
+			refresh_lock = true;
 			break;
 		case INSERT:
 			Object o = e.data;

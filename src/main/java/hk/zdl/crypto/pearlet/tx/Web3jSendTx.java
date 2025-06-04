@@ -5,7 +5,6 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
-import java.util.concurrent.Callable;
 
 import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.TypeReference;
@@ -28,8 +27,6 @@ import hk.zdl.crypto.pearlet.lock.CryptoAccount;
 import hk.zdl.crypto.pearlet.util.CryptoUtil;
 
 public class Web3jSendTx extends SendTx { // 继承抽象父类 SendTx
-
-    // 移除重复声明（父类已包含 network/from/to/amount/fee/asset_id 等属性）
 
     private Web3jSendTx(Builder builder) {
         super(builder.network, builder.from, builder.to, builder.amount, builder.fee, builder.assetId); // 调用父类构造器

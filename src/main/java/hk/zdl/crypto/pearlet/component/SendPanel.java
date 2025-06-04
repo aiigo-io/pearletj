@@ -10,6 +10,8 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
@@ -26,6 +28,7 @@ import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 import javax.imageio.ImageIO;
+import javax.swing.AbstractAction;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListCellRenderer;
@@ -45,6 +48,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JSlider;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 
@@ -84,6 +88,7 @@ public class SendPanel extends JPanel {
 	private final Map<Object, BigDecimal> asset_balance = new HashMap<>();
 	private final JLabel balance_label = new JLabel();
 	private final SpinableIcon busy_icon = new SpinableIcon(new BufferedImage(32, 32, BufferedImage.TYPE_4BYTE_ABGR), 32, 32);
+	private boolean refresh_lock = false;
 	private JButton send_btn;
 	private CryptoNetwork network;
 	private String account;
@@ -92,6 +97,19 @@ public class SendPanel extends JPanel {
 	public SendPanel() {
 		super(new BorderLayout());
 		EventBus.getDefault().register(this);
+		if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+			getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.META_DOWN_MASK), "macRefresh");
+			getActionMap().put("macRefresh", new AbstractAction() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					if (network != null && account != null) {
+						if(!refresh_lock) {
+							EventBus.getDefault().post(new AccountChangeEvent(network, account));
+						}
+					}
+				}
+			});
+		}
 		add(jlayer, BorderLayout.CENTER);
 		var _panel = new JPanel(new FlowLayout());
 		jlayer.setView(_panel);
@@ -280,7 +298,7 @@ public class SendPanel extends JPanel {
 					try {
 						bArr = Base64.decode(msg_area.getText().trim());
 					} catch (Exception x) {
-						JOptionPane.showMessageDialog(getRootPane(), rsc_bdl.getString("SEND_PANEL.ERR_1") , rsc_bdl.getString("GENERAL.ERROR"), JOptionPane.ERROR_MESSAGE);
+						JOptionPane.showMessageDialog(getRootPane(), rsc_bdl.getString("SEND_PANEL.ERR_1"), rsc_bdl.getString("GENERAL.ERROR"), JOptionPane.ERROR_MESSAGE);
 						return;
 					}
 					if (bArr.length > 1000) {
@@ -338,14 +356,14 @@ public class SendPanel extends JPanel {
 	}
 
 	@Subscribe(threadMode = ThreadMode.ASYNC)
-	public void onMessage(AccountChangeEvent e) {
+	public synchronized void onMessage(AccountChangeEvent e) {
 		var network_change = this.network != e.network;
 		this.network = e.network;
 		this.account = e.account;
 		var symbol = "";
 		if (network == null) {
 			return;
-		}else if(network.isBurst()) {
+		} else if (network.isBurst()) {
 			try {
 				symbol = CryptoUtil.getConstants(network).getString("valueSuffix");
 			} catch (Exception x) {
@@ -361,15 +379,16 @@ public class SendPanel extends JPanel {
 			send_btn.setEnabled(false);
 		} else {
 			wuli.start();
+			refresh_lock = true;
 			if (network_change || fee_field.getText().isBlank()) {
 				Util.submit(() -> {
 					decimalPlaces = CryptoUtil.getConstants(network).getInt("decimalPlaces");
 					var g = CryptoUtil.getFeeSuggestion(network);
 					// 将滑动条属性设置操作放到 EDT 中执行
 					SwingUtilities.invokeLater(() -> {
-					    fee_slider.setMinimum(g.getCheapFee().toNQT().intValue());
-					    fee_slider.setMaximum(g.getPriorityFee().toNQT().intValue());
-					    fee_slider.setValue(g.getStandardFee().toNQT().intValue());
+						fee_slider.setMinimum(g.getCheapFee().toNQT().intValue());
+						fee_slider.setMaximum(g.getPriorityFee().toNQT().intValue());
+						fee_slider.setValue(g.getStandardFee().toNQT().intValue());
 					});
 					return null;
 				});
@@ -381,6 +400,7 @@ public class SendPanel extends JPanel {
 					Logger.getLogger(getClass().getName()).log(Level.SEVERE, x.getMessage(), x);
 				} finally {
 					wuli.stop();
+					refresh_lock = false;
 				}
 			});
 			var o_b = MyDb.isWatchAccount(network, account);

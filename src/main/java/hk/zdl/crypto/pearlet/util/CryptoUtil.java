@@ -1,8 +1,10 @@
 package hk.zdl.crypto.pearlet.util;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -18,6 +20,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.message.BasicNameValuePair;
 import org.bouncycastle.util.encoders.Base64;
 import org.bouncycastle.util.encoders.Hex;
+import org.identityconnectors.common.IOUtil;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -27,6 +30,7 @@ import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.utils.Convert;
+import org.web3j.utils.Numeric;
 
 import hk.zdl.crypto.pearlet.component.account_settings.burst.PKT;
 import hk.zdl.crypto.pearlet.ds.CryptoNetwork;
@@ -286,13 +290,32 @@ public class CryptoUtil {
 		return new BigDecimal("-1");
 	}
 
+	@SuppressWarnings("deprecation")
 	public static JSONArray getAccountBalances(String address) throws Exception {
 		var web3j = getWeb3j().orElseThrow(() -> new IOException("Web3j instance not available"));
+
+		// 获取原生ETH余额
 		BigInteger weiBalance = web3j.ethGetBalance(address, DefaultBlockParameterName.LATEST).send().getBalance();
-		JSONObject ethBalance = new JSONObject().put("contract_name", "Ether").put("contract_ticker_symbol", "ETH").put("contract_decimals", 18)
-				.put("contract_address", "0x0000000000000000000000000000000000000000") // 添加合约地址字段
-				.put("balance", weiBalance.toString());
-		return new JSONArray().put(ethBalance);
+		JSONArray result = new JSONArray();
+		result.put(new JSONObject().put("contract_name", "Ether").put("contract_ticker_symbol", "ETH").put("contract_decimals", 18)
+				.put("contract_address", "0x0000000000000000000000000000000000000000").put("balance", weiBalance.toString()));
+
+		// 获取ERC-20代币余额
+		String apiUrl = "http://explorer.aiigo.org/api/v2/addresses/" + address + "/tokens";
+		byte[] bytes = IOUtil.readInputStreamBytes(new URL(apiUrl).openStream(), true);
+
+		JSONObject response = new JSONObject(new JSONTokener(new ByteArrayInputStream(bytes)));
+		JSONArray items = response.getJSONArray("items");
+
+		for (int i = 0; i < items.length(); i++) {
+			JSONObject item = items.getJSONObject(i);
+			JSONObject token = item.getJSONObject("token");
+
+			result.put(new JSONObject().put("contract_name", token.getString("name")).put("contract_ticker_symbol", token.getString("symbol")).put("contract_decimals", token.getInt("decimals"))
+					.put("contract_address", token.getString("address_hash")).put("balance", item.getString("value")));
+		}
+
+		return result;
 	}
 
 	public static JSONArray getTxHistory(String address, int page_number, int page_size) throws Exception {
@@ -576,6 +599,8 @@ public class CryptoUtil {
 		if (nw.isBurst()) {
 			var ns = NodeService.getInstance(nw.getUrl());
 			return ns.broadcastTransaction(signedTransactionBytes).blockingGet();
+		} else if (nw.isWeb3J()) {
+			return getWeb3j().get().ethSendRawTransaction(Numeric.toHexString(signedTransactionBytes)).sendAsync();
 		}
 		throw new UnsupportedOperationException();
 	}

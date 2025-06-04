@@ -11,6 +11,9 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.Point;
+import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.math.BigDecimal;
@@ -24,6 +27,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
+import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListCellRenderer;
@@ -37,6 +41,7 @@ import javax.swing.JPopupMenu;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
@@ -84,14 +89,28 @@ public class DashBoard extends JPanel {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private final JLayer<JScrollPane> scroll_pane_layer = new JLayer(table_scroll_pane, wuli);
 	private final JButton manage_token_list_btn = new JButton(rsc_bdl.getString("DASHBOARD.MANAGE_TOKEN_LIST"));
+	private boolean refresh_lock = false;
 	private long _last_table_update;
-	private CryptoNetwork nw;
+	private CryptoNetwork network;
 	private String account;
 	private Thread token_list_thread = null;
 
 	public DashBoard() {
 		super(new GridBagLayout());
 		EventBus.getDefault().register(this);
+		if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+			getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.META_DOWN_MASK), "macRefresh");
+			getActionMap().put("macRefresh", new AbstractAction() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					if (network != null && account != null) {
+						if(!refresh_lock) {
+							EventBus.getDefault().post(new AccountChangeEvent(network, account));
+						}
+					}
+				}
+			});
+		}
 		var label1 = new JLabel(rsc_bdl.getString("DASHBOARD.TITLE_TOKENS"));
 		add(label1, new GridBagConstraints(0, 0, 1, 1, 0, 0, 17, 1, new Insets(0, 20, 0, 0), 0, 0));
 		token_list_progress_bar.setIndeterminate(true);
@@ -105,8 +124,8 @@ public class DashBoard extends JPanel {
 		var issue_token_menu_item = new JMenuItem(rsc_bdl.getString("DASHBOARD.MANAGE_ISSUE_TOKEN"));
 		manage_token_list_menu.add(issue_token_menu_item);
 		manage_token_list_btn.addActionListener(e -> manage_token_list_menu.show(manage_token_list_btn, 0, 0));
-		issue_token_menu_item.addActionListener(e -> Stream.of(new IssueTokenPanel(getRootPane(), nw, account).showConfirmDialog()).filter(Boolean::valueOf).findAny()
-				.ifPresent(o -> EventBus.getDefault().post(new AccountChangeEvent(nw, account))));
+		issue_token_menu_item.addActionListener(e -> Stream.of(new IssueTokenPanel(getRootPane(), network, account).showConfirmDialog()).filter(Boolean::valueOf).findAny()
+				.ifPresent(o -> EventBus.getDefault().post(new AccountChangeEvent(network, account))));
 
 		var label2 = new JLabel(rsc_bdl.getString("DASHBOARD.TITLE_BALANCE"));
 		add(label2, new GridBagConstraints(1, 0, 1, 1, 0, 0, 17, 0, new Insets(0, 20, 0, 0), 0, 0));
@@ -188,7 +207,7 @@ public class DashBoard extends JPanel {
 					if (atw.network.isWeb3J()) {
 						var jobj = atw.jobj;
 						try {
-							Util.viewContractDetail(nw, jobj);
+							Util.viewContractDetail(network, jobj);
 						} catch (Exception x) {
 							Logger.getLogger(getClass().getName()).log(Level.WARNING, x.getMessage(), x);
 						}
@@ -218,7 +237,7 @@ public class DashBoard extends JPanel {
 				int row = table.rowAtPoint(point);
 				if (mouseEvent.getClickCount() == 2 && row >= 0 & row == table.getSelectedRow()) {
 					try {
-						Util.viewTxDetail(nw, table_model.getValueAt(row, 0));
+						Util.viewTxDetail(network, table_model.getValueAt(row, 0));
 					} catch (Exception x) {
 						Logger.getLogger(getClass().getName()).log(Level.WARNING, x.getMessage(), x);
 					}
@@ -229,32 +248,32 @@ public class DashBoard extends JPanel {
 	}
 
 	@Subscribe(threadMode = ThreadMode.ASYNC)
-	public void onMessage(AccountChangeEvent e) {
-		this.nw = e.network;
+	public synchronized void onMessage(AccountChangeEvent e) {
+		this.network = e.network;
 		this.account = e.account;
 		var symbol = "";
 		currency_label.setText(symbol);
 		token_list_card_layout.show(token_list_panel, "bar");
 		token_list.setModel(new DefaultComboBoxModel<AltTokenWrapper>());
 		asset_info_panel.setVisible(false);
-		if (nw == null || account == null || account.isBlank()) {
+		if (network == null || account == null || account.isBlank()) {
 			balance_label.setText("0");
 			token_list_card_layout.show(token_list_panel, "list");
 		} else {
 			balance_label.setText("?");
 			new TxProc().update_column_model(e.network, table_column_model, e.account);
-			if (nw.isBurst()) {
+			if (network.isBurst()) {
 				Util.submit(() -> {
 					try {
-						var account = CryptoUtil.getAccount(nw, e.account);
+						var account = CryptoUtil.getAccount(network, e.account);
 						var balance_text = "?";
 						var balance = account.getBalance();
 						var committed_balance = account.getCommittedBalance();
 						balance = balance.subtract(committed_balance);
-						var decimalPlaces = CryptoUtil.getConstants(nw).getInt("decimalPlaces");
+						var decimalPlaces = CryptoUtil.getConstants(network).getInt("decimalPlaces");
 						balance_text = new BigDecimal(balance.toNQT(), decimalPlaces).toPlainString();
-						EventBus.getDefault().post(new BalanceUpdateEvent(nw, e.account, new BigDecimal(balance_text)));
-						token_list.setListData(Arrays.asList(account.getAssetBalances()).stream().map(o -> CryptoUtil.getAsset(nw, o.getAssetId().toString())).map(o -> new AltTokenWrapper(nw, o))
+						EventBus.getDefault().post(new BalanceUpdateEvent(network, e.account, new BigDecimal(balance_text)));
+						token_list.setListData(Arrays.asList(account.getAssetBalances()).stream().map(o -> CryptoUtil.getAsset(network, o.getAssetId().toString())).map(o -> new AltTokenWrapper(network, o))
 								.toArray((i) -> new AltTokenWrapper[i]));
 						if (token_list.getModel().getSize() > 0) {
 							token_list.setSelectedIndex(0);
@@ -268,11 +287,11 @@ public class DashBoard extends JPanel {
 						updateUI();
 					}
 				});
-			} else if (nw.isWeb3J()) {
+			} else if (network.isWeb3J()) {
 				Util.submit(() -> {
 					try {
-						var balance = CryptoUtil.getBalance(nw, account);
-						EventBus.getDefault().post(new BalanceUpdateEvent(nw, account, balance));
+						var balance = CryptoUtil.getBalance(network, account);
+						EventBus.getDefault().post(new BalanceUpdateEvent(network, account, balance));
 					} catch (Exception x) {
 						Logger.getLogger(getClass().getName()).log(Level.WARNING, x.getMessage(), x);
 					} finally {
@@ -282,7 +301,7 @@ public class DashBoard extends JPanel {
 				refresh_token_list();
 			}
 		}
-		manage_token_list_btn.setEnabled(nw != null && nw.isBurst());
+		manage_token_list_btn.setEnabled(network != null && network.isBurst());
 	}
 
 	private final synchronized void refresh_token_list() {
@@ -320,7 +339,7 @@ public class DashBoard extends JPanel {
 				List<AltTokenWrapper> l = new ArrayList<>(items.length());
 				for (int i = 0; i < items.length(); i++) {
 					var jobj = items.getJSONObject(i);
-					l.add(new AltTokenWrapper(nw, jobj));
+					l.add(new AltTokenWrapper(network, jobj));
 				}
 				int i = token_list.getLeadSelectionIndex();
 				token_list.setListData(l.toArray(new AltTokenWrapper[items.length()]));
@@ -336,7 +355,7 @@ public class DashBoard extends JPanel {
 	@Subscribe(threadMode = ThreadMode.ASYNC)
 	public void onMessage(BalanceUpdateEvent e) {
 		String balance = e.getBalance().stripTrailingZeros().toPlainString();
-		if (e.getNetwork().equals(nw) && e.getAddress().equals(account)) {
+		if (e.getNetwork().equals(network) && e.getAddress().equals(account)) {
 			balance_label.setText(balance);
 		}
 	}
@@ -345,10 +364,12 @@ public class DashBoard extends JPanel {
 	public void onMessage(TxHistoryEvent<?> e) {
 		switch (e.type) {
 		case START:
+			refresh_lock = true;
 			wuli.start();
 			table_model.clearData();
 			break;
 		case FINISH:
+			refresh_lock = false;
 			wuli.stop();
 			break;
 		case INSERT:
