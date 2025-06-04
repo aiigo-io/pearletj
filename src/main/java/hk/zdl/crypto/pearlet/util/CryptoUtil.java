@@ -337,6 +337,33 @@ public class CryptoUtil {
 		}
 	}
 
+	public static BigDecimal getTxAmount(CryptoNetwork nw, String hash) throws Exception {
+		if (nw.isWeb3J()) {
+			var client = WebUtil.getHttpclient();
+			var url = "http://explorer.aiigo.org/api/v2/transactions/" + hash;
+			var httpGet = new HttpGet(url);
+
+			try (var response = client.execute(httpGet)) {
+				var entity = response.getEntity();
+				if (response.getStatusLine().getStatusCode() != 200) {
+					throw new IOException("HTTP error: " + response.getStatusLine());
+				}
+
+				var jobj = new JSONObject(new JSONTokener(entity.getContent()));
+				var type = jobj.getJSONArray("transaction_types").toList().stream().map(Object::toString).toList();
+				if (type.contains("token_transfer")) {
+					jobj = jobj.getJSONArray("token_transfers").getJSONObject(0).getJSONObject("total");
+					return new BigDecimal(jobj.getString("value")).movePointLeft(jobj.getInt("decimals"));
+				} else if (type.contains("coin_transfer")) {
+					return Convert.fromWei(new BigDecimal(jobj.getString("value")), Convert.Unit.ETHER);
+				}
+			} finally {
+				httpGet.releaseConnection();
+			}
+		}
+		throw new UnsupportedOperationException();
+	}
+
 	public static byte[] generateTransferAssetTransaction(CryptoNetwork nw, byte[] senderPublicKey, String recipient, String assetId, BigDecimal quantity, BigDecimal fee) throws Exception {
 		if (nw.isBurst()) {
 			var server_url = nw.getUrl();

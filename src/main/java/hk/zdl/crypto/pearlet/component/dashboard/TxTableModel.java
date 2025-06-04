@@ -52,4 +52,15 @@ public class TxTableModel extends AbstractTableModel {
 		fireTableRowsInserted(data.size() - 1, data.size());
 	}
 
+	@Override
+	public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
+		if (rowIndex >= data.size()) {
+			throw new IndexOutOfBoundsException(rowIndex);
+		} else if (columnIndex >= columnNames.size()) {
+			throw new IndexOutOfBoundsException(columnIndex);
+		}
+		data.get(rowIndex)[columnIndex] = aValue;
+		fireTableDataChanged();
+	}
+
 }

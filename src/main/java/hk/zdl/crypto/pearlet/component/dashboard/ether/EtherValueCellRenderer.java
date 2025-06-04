@@ -13,12 +13,19 @@ import org.web3j.utils.Convert;
 
 import com.jthemedetecor.OsThemeDetector;
 
+import hk.zdl.crypto.pearlet.ds.CryptoNetwork;
+import hk.zdl.crypto.pearlet.ds.CryptoNetwork.Type;
+
 @SuppressWarnings("serial")
 public class EtherValueCellRenderer extends DefaultTableCellRenderer {
 
 	private static final OsThemeDetector otd = OsThemeDetector.getDetector();
 	private static final Color my_cyan = new Color(0, 175, 175), my_lime = new Color(175, 255, 175);
+	private static final CryptoNetwork network = new CryptoNetwork();
 	private final String address;
+	static {
+		network.setType(Type.WEB3J);
+	}
 
 	public EtherValueCellRenderer(String address) {
 		this.address = address;
@@ -30,15 +37,16 @@ public class EtherValueCellRenderer extends DefaultTableCellRenderer {
 		boolean isDark = otd.isDark();
 		if (!isSelected) {
 			var tx = (JSONObject) value;
-			if (tx.getJSONObject("from").getString("hash").equalsIgnoreCase(address)) {
-				if (tx.optInt("type") == 0) {
+			if (tx.optInt("type") == 0) {
+				if (tx.getJSONObject("from").getString("hash").equalsIgnoreCase(address)) {
 					setBackground(isDark ? darker(Color.pink) : Color.pink);
 				} else {
-					setBackground(isDark ? darker(my_cyan) : my_cyan);
+					setBackground(isDark ? darker(my_lime) : my_lime);
 				}
 			} else {
-				setBackground(isDark ? darker(my_lime) : my_lime);
+				setBackground(isDark ? darker(my_cyan) : my_cyan);
 			}
+
 		}
 		return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 	}
@@ -46,8 +54,12 @@ public class EtherValueCellRenderer extends DefaultTableCellRenderer {
 	@Override
 	protected void setValue(Object value) {
 		var tx = (JSONObject) value;
-		var val = Convert.fromWei(new BigDecimal(tx.getString("value")), Convert.Unit.ETHER);
-		setText(val.stripTrailingZeros().toPlainString());
+		if (tx.has("text")) {
+			setText(tx.getString("text"));
+		} else {
+			var val = Convert.fromWei(new BigDecimal(tx.getString("value")), Convert.Unit.ETHER);
+			setText(val.stripTrailingZeros().toPlainString());
+		}
 	}
 
 	private static final Color darker(Color c) {

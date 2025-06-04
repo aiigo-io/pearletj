@@ -53,6 +53,7 @@ import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 import org.json.JSONArray;
+import org.json.JSONObject;
 import org.web3j.utils.Convert;
 
 import hk.zdl.crypto.pearlet.component.dashboard.TxProc;
@@ -104,7 +105,7 @@ public class DashBoard extends JPanel {
 				@Override
 				public void actionPerformed(ActionEvent e) {
 					if (network != null && account != null) {
-						if(!refresh_lock) {
+						if (!refresh_lock) {
 							EventBus.getDefault().post(new AccountChangeEvent(network, account));
 						}
 					}
@@ -273,8 +274,8 @@ public class DashBoard extends JPanel {
 						var decimalPlaces = CryptoUtil.getConstants(network).getInt("decimalPlaces");
 						balance_text = new BigDecimal(balance.toNQT(), decimalPlaces).toPlainString();
 						EventBus.getDefault().post(new BalanceUpdateEvent(network, e.account, new BigDecimal(balance_text)));
-						token_list.setListData(Arrays.asList(account.getAssetBalances()).stream().map(o -> CryptoUtil.getAsset(network, o.getAssetId().toString())).map(o -> new AltTokenWrapper(network, o))
-								.toArray((i) -> new AltTokenWrapper[i]));
+						token_list.setListData(Arrays.asList(account.getAssetBalances()).stream().map(o -> CryptoUtil.getAsset(network, o.getAssetId().toString()))
+								.map(o -> new AltTokenWrapper(network, o)).toArray((i) -> new AltTokenWrapper[i]));
 						if (token_list.getModel().getSize() > 0) {
 							token_list.setSelectedIndex(0);
 						} else {
@@ -381,11 +382,28 @@ public class DashBoard extends JPanel {
 					_last_table_update = System.currentTimeMillis();
 				});
 			}
+			Util.submit(() -> check_data(o, table_model.getRowCount(), 3));
 			break;
 		default:
 			break;
 
 		}
+	}
+
+	private Void check_data(Object aValue, int rowIndex, int columnIndex) throws Exception {
+		var tx = (JSONObject) aValue;
+		var type = tx.getJSONArray("transaction_types").toList().stream().map(Object::toString).toList();
+		if (type.contains("token_transfer")) {
+			var x = CryptoUtil.getTxAmount(network, tx.getString("hash"));
+			tx.put("text", x.stripTrailingZeros().toPlainString());
+			SwingUtilities.invokeLater(() -> {
+				try {
+					table_model.setValueAt(tx, rowIndex, columnIndex);
+				} catch (Exception e) {
+				}
+			});
+		}
+		return null;
 	}
 
 }
