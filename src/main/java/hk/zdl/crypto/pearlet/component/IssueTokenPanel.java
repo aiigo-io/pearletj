@@ -126,10 +126,11 @@ public class IssueTokenPanel extends JPanel {
 					CryptoUtil.toSignumValue(nw, new BigDecimal((Long) fee_spinner.getValue())).toNQT().longValue(), public_key);
 			byte[] signed_tx = CryptoUtil.signTransaction(nw, private_key, unsigned_tx);
 			CryptoUtil.broadcastTransaction(nw, signed_tx);
+			return true; // 交易成功后返回true
 		} catch (Throwable x) {
 			Logger.getLogger(getClass().getName()).log(Level.WARNING, x.getMessage(), x);
 			JOptionPane.showMessageDialog(root, x.getMessage(), x.getClass().getSimpleName(), JOptionPane.ERROR_MESSAGE);
 		}
-		return false;
+		return false; // 异常时保持返回false
 	}
 }

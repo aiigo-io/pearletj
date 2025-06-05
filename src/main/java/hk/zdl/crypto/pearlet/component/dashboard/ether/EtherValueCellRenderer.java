@@ -3,6 +3,7 @@ package hk.zdl.crypto.pearlet.component.dashboard.ether;
 import java.awt.Color;
 import java.awt.Component;
 import java.math.BigDecimal;
+import java.math.RoundingMode; // 新增RoundingMode导入
 
 import javax.swing.JTable;
 import javax.swing.SwingConstants;
@@ -58,7 +59,7 @@ public class EtherValueCellRenderer extends DefaultTableCellRenderer {
 			setText(tx.getString("text"));
 		} else {
 			var val = Convert.fromWei(new BigDecimal(tx.getString("value")), Convert.Unit.ETHER);
-			setText(val.stripTrailingZeros().toPlainString());
+			setText(val.setScale(2, RoundingMode.HALF_UP).toPlainString()); // 保留两位小数（四舍五入）
 		}
 	}
 

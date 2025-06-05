@@ -18,6 +18,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -272,7 +273,7 @@ public class DashBoard extends JPanel {
 						var committed_balance = account.getCommittedBalance();
 						balance = balance.subtract(committed_balance);
 						var decimalPlaces = CryptoUtil.getConstants(network).getInt("decimalPlaces");
-						balance_text = new BigDecimal(balance.toNQT(), decimalPlaces).toPlainString();
+						balance_text = new BigDecimal(balance.toNQT(), decimalPlaces).setScale(2, RoundingMode.HALF_UP).toPlainString(); // 保留两位小数（四舍五入）
 						EventBus.getDefault().post(new BalanceUpdateEvent(network, e.account, new BigDecimal(balance_text)));
 						token_list.setListData(Arrays.asList(account.getAssetBalances()).stream().map(o -> CryptoUtil.getAsset(network, o.getAssetId().toString()))
 								.map(o -> new AltTokenWrapper(network, o)).toArray((i) -> new AltTokenWrapper[i]));
@@ -306,6 +307,10 @@ public class DashBoard extends JPanel {
 	}
 
 	private final synchronized void refresh_token_list() {
+		// 检查旧线程是否已结束，避免重复启动
+		if (token_list_thread != null && token_list_thread.isAlive()) {
+			return;
+		}
 		token_list_thread = new Thread() {
 
 			@Override
@@ -321,7 +326,9 @@ public class DashBoard extends JPanel {
 						if (jobj.getString("contract_name").equals("Ether") && jobj.getString("contract_ticker_symbol").equals("ETH")) {
 							BigInteger wei = new BigInteger(jobj.getString("balance"));
 							BigDecimal eth = Convert.fromWei(new BigDecimal(wei), Convert.Unit.ETHER);
-							balance_label.setText(eth.toPlainString());
+							SwingUtilities.invokeLater(() -> {
+								balance_label.setText(eth.setScale(2, RoundingMode.HALF_UP).toPlainString());
+							});
 							break;
 						}
 					}
@@ -355,7 +362,7 @@ public class DashBoard extends JPanel {
 
 	@Subscribe(threadMode = ThreadMode.ASYNC)
 	public void onMessage(BalanceUpdateEvent e) {
-		String balance = e.getBalance().stripTrailingZeros().toPlainString();
+		String balance = e.getBalance().setScale(2, RoundingMode.HALF_UP).toPlainString();
 		if (e.getNetwork().equals(network) && e.getAddress().equals(account)) {
 			balance_label.setText(balance);
 		}
@@ -395,13 +402,8 @@ public class DashBoard extends JPanel {
 		var type = tx.getJSONArray("transaction_types").toList().stream().map(Object::toString).toList();
 		if (type.contains("token_transfer")) {
 			var x = CryptoUtil.getTxAmount(network, tx.getString("hash"));
-			tx.put("text", x.stripTrailingZeros().toPlainString());
-			SwingUtilities.invokeLater(() -> {
-				try {
-					table_model.setValueAt(tx, rowIndex, columnIndex);
-				} catch (Exception e) {
-				}
-			});
+			tx.put("text", x.setScale(2, RoundingMode.HALF_UP).toPlainString()); // 保留两位小数（四舍五入）
+			SwingUtilities.invokeLater(() -> table_model.setValueAt(tx, rowIndex, columnIndex));
 		}
 		return null;
 	}

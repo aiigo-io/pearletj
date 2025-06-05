@@ -49,15 +49,15 @@ public class TxTableModel extends AbstractTableModel {
 
 	public final void insertData(Object[] entry) {
 		data.add(entry);
-		fireTableRowsInserted(data.size() - 1, data.size());
+		fireTableRowsInserted(data.size() - 1, data.size() - 1); // 修正结束行号
 	}
 
 	@Override
 	public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
 		if (rowIndex >= data.size()) {
-			throw new IndexOutOfBoundsException(rowIndex);
+			return;
 		} else if (columnIndex >= columnNames.size()) {
-			throw new IndexOutOfBoundsException(columnIndex);
+			return;
 		}
 		data.get(rowIndex)[columnIndex] = aValue;
 		fireTableDataChanged();

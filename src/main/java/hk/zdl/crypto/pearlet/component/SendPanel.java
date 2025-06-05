@@ -209,7 +209,7 @@ public class SendPanel extends JPanel {
 		}
 		panel_1.add(send_btn, new GridBagConstraints(0, 12, 5, 1, 0, 0, 10, 0, new Insets(5, 0, 5, 0), 0, 0));
 
-		token_combo_box.addActionListener(e -> updat_balance_label(asset_balance.get(token_combo_box.getSelectedItem())));
+		token_combo_box.addActionListener(e -> update_balance_label(asset_balance.get(token_combo_box.getSelectedItem())));
 		token_combo_box.setRenderer(new DefaultListCellRenderer() {
 
 			@Override
@@ -468,21 +468,12 @@ public class SendPanel extends JPanel {
 	@Subscribe(threadMode = ThreadMode.ASYNC)
 	public void onMessage(BalanceUpdateEvent e) {
 		if (e.getNetwork().equals(network) && e.getAddress().equals(account)) {
-			updat_balance_label(e.getBalance());
+			update_balance_label(e.getBalance());
 		}
 	}
 
-	private final void updat_balance_label(BigDecimal value) {
-		var raw = value.stripTrailingZeros().toPlainString();
-		var tip = raw;
-		if (raw.contains(".")) {
-			var a = raw.substring(raw.indexOf('.'));
-			if (a.length() > 3) {
-				raw = raw.substring(0, raw.indexOf('.') + 1 + 3);
-			}
-		}
-		balance_label.setText(raw);
-		balance_label.setToolTipText(tip);
+	private final void update_balance_label(BigDecimal value) {
+		balance_label.setText(value.setScale(2, RoundingMode.HALF_UP).toPlainString());
 	}
 
 	private static final GridBagConstraints newGridConst(int x, int y, int width) {
