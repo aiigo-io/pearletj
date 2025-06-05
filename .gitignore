@@ -24,5 +24,9 @@
 hs_err_pid*
 /target/
 /.settings/
+/node_modules/
+/src/main/java/org/web3j/contracts/
 .DS_Store
 Thumbs.db
+/package-lock.json
+/package.json
