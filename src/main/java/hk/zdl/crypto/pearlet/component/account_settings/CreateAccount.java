@@ -11,6 +11,8 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.ResourceBundle;
 
@@ -23,9 +25,11 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
 import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.WindowConstants;
@@ -33,15 +37,19 @@ import javax.swing.WindowConstants;
 import org.greenrobot.eventbus.EventBus;
 import org.java_websocket.util.Base64;
 import org.jdesktop.swingx.combobox.EnumComboBoxModel;
+import org.web3j.abi.datatypes.Address;
+import org.web3j.contracts.gnosissafe.generated.Safe;
 import org.web3j.crypto.Bip32ECKeyPair;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.MnemonicUtils;
+import org.web3j.tx.gas.DynamicGasProvider;
 
 import hk.zdl.crypto.pearlet.component.account_settings.burst.PKT;
 import hk.zdl.crypto.pearlet.component.event.AccountListUpdateEvent;
 import hk.zdl.crypto.pearlet.ds.CryptoNetwork;
 import hk.zdl.crypto.pearlet.misc.IndepandentWindows;
 import hk.zdl.crypto.pearlet.ui.UIUtil;
+import hk.zdl.crypto.pearlet.util.CryptoUtil;
 import hk.zdl.crypto.pearlet.util.Util;
 
 public class CreateAccount {
@@ -182,12 +190,11 @@ public class CreateAccount {
 				byte[] seed = MnemonicUtils.generateSeed(mnemonic, "");
 
 				// 使用BIP-32路径派生密钥对（与 load_from_mnemonic 路径一致）
-				int[] path = { 
-					44 | Bip32ECKeyPair.HARDENED_BIT,  // 44' (purpose)
-					60 | Bip32ECKeyPair.HARDENED_BIT,  // 60' (coin type)
-					0 | Bip32ECKeyPair.HARDENED_BIT,   // 0' (account)
-					0,                                 // 0 (change)
-					0                                  // 0 (address index)
+				int[] path = { 44 | Bip32ECKeyPair.HARDENED_BIT, // 44' (purpose)
+						60 | Bip32ECKeyPair.HARDENED_BIT, // 60' (coin type)
+						0 | Bip32ECKeyPair.HARDENED_BIT, // 0' (account)
+						0, // 0 (change)
+						0 // 0 (address index)
 				};
 				Bip32ECKeyPair masterKeyPair = Bip32ECKeyPair.generateKeyPair(seed);
 				Bip32ECKeyPair derivedKeyPair = Bip32ECKeyPair.deriveKeyPair(masterKeyPair, path);
@@ -204,6 +211,38 @@ public class CreateAccount {
 			} catch (Exception e) {
 				JOptionPane.showMessageDialog(w, e.getMessage(), e.getClass().getSimpleName(), JOptionPane.ERROR_MESSAGE);
 				return;
+			}
+		}
+	}
+
+	public static final void create_new_multisig_account_dialog(Component c, CryptoNetwork nw) {
+		var w = SwingUtilities.getWindowAncestor(c);
+		if (nw.isWeb3J()) {
+			JTextArea ownersArea = new JTextArea(5, 20);
+			ownersArea.setLineWrap(true);
+			JScrollPane scrollPane = new JScrollPane(ownersArea);
+			JSpinner requiredSigs = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1));
+
+			Object[] message = { rsc_bdl.getString("MULTISIG.CREATION.ETH.INFO"), rsc_bdl.getString("MULTISIG.CREATION.ETH.OWNERS_LABEL"), scrollPane,
+					rsc_bdl.getString("MULTISIG.CREATION.ETH.THRESHOLD_LABEL"), requiredSigs };
+
+			int option = JOptionPane.showConfirmDialog(c, message, rsc_bdl.getString("MULTISIG.CREATION.ETH.TITLE"), JOptionPane.OK_CANCEL_OPTION);
+
+			if (option == JOptionPane.OK_OPTION) {
+				// 使用正则表达式分割换行输入（兼容前后空格）
+				String[] owners = ownersArea.getText().split("\\s*\n\\s*");
+
+				// Gnosis Safe 合约地址（主网默认地址：0x68b3465833fb72A70ecDF485Ee4263c06Fd50fda）
+				String safeAddress = "0x68b3465833fb72A70ecDF485Ee4263c06Fd50fda";
+
+				// 修改合约加载方式
+				Safe contract = Safe.load(safeAddress, CryptoUtil.getWeb3j().get(), Credentials.create(""), new DynamicGasProvider(CryptoUtil.getWeb3j().get()));
+
+				// 修正setup方法参数类型
+				contract.setup(Arrays.asList(owners), new BigInteger("0"), Address.DEFAULT.toString(), new byte[] {}, Address.DEFAULT.toString(), Address.DEFAULT.toString(), BigInteger.ZERO,
+						Address.DEFAULT.toString()).sendAsync();
+			} else if (nw.isBurst()) {
+				JOptionPane.showMessageDialog(w, rsc_bdl.getString("ERROR.MULTISIG_NOT_SUPPORTED"), rsc_bdl.getString("GENERAL.ERROR"), JOptionPane.ERROR_MESSAGE);
 			}
 		}
 	}

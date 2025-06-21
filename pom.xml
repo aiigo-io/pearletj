@@ -45,33 +45,6 @@
 			</resource>
 		</resources>
 		<plugins>
-	        <plugin>
-	            <groupId>org.web3j</groupId>
-	            <artifactId>web3j-maven-plugin</artifactId>
-	            <version>4.14.0</version>
-				<executions>
-                    <execution>
-                    	<?m2e execute onConfiguration,onIncremental?>
-                        <id>generate-contracts</id>
-                        <goals>
-                            <goal>generate-sources</goal>
-                        </goals>
-                        <phase>generate-sources</phase>
-                        <configuration>
-                            <source>${project.basedir}/src/main/resources/solidity</source>
-                            <outputDir>${project.basedir}/src/main/java/</outputDir>
-                            <packageName>org.web3j.contracts</packageName>
-							<compilerOptions>
-							<remappings>
-								<remapping>@openzeppelin/=${project.basedir}/node_modules/@openzeppelin/</remapping>
-								<remapping>@safe-global/=${project.basedir}/node_modules/@safe-global/</remapping>
-							</remappings>
-						</compilerOptions>
-						<processAbiFiles>false</processAbiFiles>
-                        </configuration>
-                    </execution>
-                </executions>
-	        </plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
