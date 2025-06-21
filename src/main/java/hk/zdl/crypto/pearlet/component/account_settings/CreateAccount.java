@@ -2,6 +2,7 @@ package hk.zdl.crypto.pearlet.component.account_settings;
 
 import java.awt.Component;
 import java.awt.Dialog;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -12,11 +13,12 @@ import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.math.BigInteger;
-import java.util.Arrays;
+import java.util.Optional;
 import java.util.Random;
 import java.util.ResourceBundle;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
@@ -24,6 +26,7 @@ import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextArea;
@@ -41,12 +44,15 @@ import org.web3j.abi.datatypes.Address;
 import org.web3j.contracts.gnosissafe.generated.Safe;
 import org.web3j.crypto.Bip32ECKeyPair;
 import org.web3j.crypto.Credentials;
+import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.MnemonicUtils;
+import org.web3j.protocol.exceptions.TransactionException;
 import org.web3j.tx.gas.DynamicGasProvider;
 
 import hk.zdl.crypto.pearlet.component.account_settings.burst.PKT;
 import hk.zdl.crypto.pearlet.component.event.AccountListUpdateEvent;
 import hk.zdl.crypto.pearlet.ds.CryptoNetwork;
+import hk.zdl.crypto.pearlet.lock.CryptoAccount;
 import hk.zdl.crypto.pearlet.misc.IndepandentWindows;
 import hk.zdl.crypto.pearlet.ui.UIUtil;
 import hk.zdl.crypto.pearlet.util.CryptoUtil;
@@ -166,7 +172,7 @@ public class CreateAccount {
 
 	private static final void web3j(Component c, CryptoNetwork nw) {
 		var w = SwingUtilities.getWindowAncestor(c);
-		Icon icon = UIUtil.getStretchIcon("icon/" + "cloud-plus-fill.svg", 64, 64);
+		var icon = UIUtil.getStretchIcon("icon/" + "cloud-plus-fill.svg", 64, 64);
 		var panel = new JPanel(new GridBagLayout());
 
 		var mm_label = new JLabel(rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE.INPUT_MNC"));
@@ -196,8 +202,8 @@ public class CreateAccount {
 						0, // 0 (change)
 						0 // 0 (address index)
 				};
-				Bip32ECKeyPair masterKeyPair = Bip32ECKeyPair.generateKeyPair(seed);
-				Bip32ECKeyPair derivedKeyPair = Bip32ECKeyPair.deriveKeyPair(masterKeyPair, path);
+				var masterKeyPair = Bip32ECKeyPair.generateKeyPair(seed);
+				var derivedKeyPair = Bip32ECKeyPair.deriveKeyPair(masterKeyPair, path);
 
 				// 直接使用派生的密钥对创建凭证
 				var cred = Credentials.create(derivedKeyPair);
@@ -218,29 +224,82 @@ public class CreateAccount {
 	public static final void create_new_multisig_account_dialog(Component c, CryptoNetwork nw) {
 		var w = SwingUtilities.getWindowAncestor(c);
 		if (nw.isWeb3J()) {
-			JTextArea ownersArea = new JTextArea(5, 20);
+			var ownersArea = new JTextArea(5, 20);
 			ownersArea.setLineWrap(true);
-			JScrollPane scrollPane = new JScrollPane(ownersArea);
-			JSpinner requiredSigs = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1));
+			var scrollPane = new JScrollPane(ownersArea);
+			var requiredSigs = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1));
+			scrollPane.setPreferredSize(new Dimension(500, 150));
 
 			Object[] message = { rsc_bdl.getString("MULTISIG.CREATION.ETH.INFO"), rsc_bdl.getString("MULTISIG.CREATION.ETH.OWNERS_LABEL"), scrollPane,
 					rsc_bdl.getString("MULTISIG.CREATION.ETH.THRESHOLD_LABEL"), requiredSigs };
 
-			int option = JOptionPane.showConfirmDialog(c, message, rsc_bdl.getString("MULTISIG.CREATION.ETH.TITLE"), JOptionPane.OK_CANCEL_OPTION);
+			var option = JOptionPane.showConfirmDialog(c, message, rsc_bdl.getString("MULTISIG.CREATION.ETH.TITLE"), JOptionPane.OK_CANCEL_OPTION);
 
 			if (option == JOptionPane.OK_OPTION) {
 				// 使用正则表达式分割换行输入（兼容前后空格）
-				String[] owners = ownersArea.getText().split("\\s*\n\\s*");
-
-				// Gnosis Safe 合约地址（主网默认地址：0x68b3465833fb72A70ecDF485Ee4263c06Fd50fda）
-				String safeAddress = "0x68b3465833fb72A70ecDF485Ee4263c06Fd50fda";
-
-				// 修改合约加载方式
-				Safe contract = Safe.load(safeAddress, CryptoUtil.getWeb3j().get(), Credentials.create(""), new DynamicGasProvider(CryptoUtil.getWeb3j().get()));
-
-				// 修正setup方法参数类型
-				contract.setup(Arrays.asList(owners), new BigInteger("0"), Address.DEFAULT.toString(), new byte[] {}, Address.DEFAULT.toString(), Address.DEFAULT.toString(), BigInteger.ZERO,
-						Address.DEFAULT.toString()).sendAsync();
+				var owners = Stream.of(ownersArea.getText().split("\\s*\n\\s*")).map(String::trim).filter(s -> !s.isBlank()).collect(Collectors.toList());
+				if (owners.isEmpty()) {
+					JOptionPane.showMessageDialog(w, rsc_bdl.getString("ERROR.EMPTY_OWNERS"), rsc_bdl.getString("ERROR.INVALID_INPUT"), JOptionPane.ERROR_MESSAGE);
+					return;
+				}
+				for (var owner : owners) {
+					if (!owner.matches("^0x[a-fA-F0-9]{40}$")) {
+						JOptionPane.showMessageDialog(w, rsc_bdl.getString("ERROR.INVALID_ADDRESS"), rsc_bdl.getString("GENERAL.ERROR"), JOptionPane.ERROR_MESSAGE);
+						return;
+					}
+				}
+				var _threshold = new BigInteger(requiredSigs.getValue().toString());
+				if (_threshold.intValue() > owners.size()) {
+					JOptionPane.showMessageDialog(w, rsc_bdl.getString("ERROR.INVALID_THRESHOLD"), rsc_bdl.getString("ERROR.INVALID_INPUT"), JOptionPane.ERROR_MESSAGE);
+					return;
+				}
+				byte[] private_key;
+				try {
+					private_key = owners.stream().map(s -> CryptoAccount.getAccount(nw, s)).flatMap(Optional::stream).findFirst()
+							.orElseThrow(() -> new IllegalArgumentException("ERROR.NO_VALID_OWNER")).getPrivateKey();
+				} catch (Exception e) {
+					JOptionPane.showMessageDialog(w, e.getMessage(), rsc_bdl.getString("GENERAL.ERROR"), JOptionPane.ERROR_MESSAGE);
+					return;
+				}
+				var dialog = new JDialog(w, rsc_bdl.getString("MULTISIG.CREATION.ETH.TITLE"), Dialog.ModalityType.APPLICATION_MODAL);
+				dialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+				IndepandentWindows.add(dialog);
+				var panel = new JPanel();
+				var bar = new JProgressBar();
+				bar.setPreferredSize(new Dimension(500, 80));
+				bar.setIndeterminate(true);
+				panel.add(bar);
+				dialog.add(panel);
+				dialog.pack();
+				dialog.setResizable(false);
+				dialog.setLocationRelativeTo(w);
+				dialog.setVisible(true);
+				Util.submit(() -> {
+					try {
+						var credentials = Credentials.create(ECKeyPair.create(private_key));
+						// Gnosis Safe 合约地址（主网默认地址：0x68b3465833fb72A70ecDF485Ee4263c06Fd50fda）
+						var safeAddress = "0x68b3465833fb72A70ecDF485Ee4263c06Fd50fda";
+						// 修改合约加载方式
+						var contract = Safe.load(safeAddress, CryptoUtil.getWeb3j().get(), credentials, new DynamicGasProvider(CryptoUtil.getWeb3j().get()));
+						// 修正setup方法参数类型
+						var receipt = contract.setup(owners, _threshold, Address.DEFAULT.toString(), new byte[] {}, Address.DEFAULT.toString(), Address.DEFAULT.toString(), BigInteger.ZERO,
+								Address.DEFAULT.toString()).send();
+						if (receipt.isStatusOK()) {
+							String tx_address = receipt.getTransactionHash();
+							String contractAddress = receipt.getContractAddress(); // 直接从事务回执获取合约地址
+							Object[] msg = { rsc_bdl.getString("MULTISIG.CREATION.SUCCESS"), contractAddress, tx_address };
+							JOptionPane.showMessageDialog(w, msg, rsc_bdl.getString("SUCCESS.TITLE"), JOptionPane.INFORMATION_MESSAGE);
+						} else {
+							throw new TransactionException("ERROR.TX_FAILED");
+						}
+					} catch (Exception e) {
+						dialog.setVisible(false);
+						JOptionPane.showMessageDialog(w, e.getMessage(), rsc_bdl.getString("GENERAL.ERROR"), JOptionPane.ERROR_MESSAGE);
+					} finally {
+						dialog.setVisible(false);
+					}
+					return null;
+				});
 			} else if (nw.isBurst()) {
 				JOptionPane.showMessageDialog(w, rsc_bdl.getString("ERROR.MULTISIG_NOT_SUPPORTED"), rsc_bdl.getString("GENERAL.ERROR"), JOptionPane.ERROR_MESSAGE);
 			}

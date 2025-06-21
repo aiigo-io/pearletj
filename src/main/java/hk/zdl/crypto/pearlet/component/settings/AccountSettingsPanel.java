@@ -92,7 +92,7 @@ public class AccountSettingsPanel extends JPanel {
 				return;
 			} else if (nws.size() == 1) {
 				var menu = new JPopupMenu();
-				JMenu typeMenu = new JMenu(rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE"));
+				var typeMenu = new JMenu(rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE"));
 				typeMenu.add(new JMenuItem(rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE_STANDARD"))).addActionListener(a -> CreateAccount.create_new_account_dialog(this, nw));
 				typeMenu.add(new JMenuItem(rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE_MULTISIG"))).addActionListener(a -> CreateAccount.create_new_multisig_account_dialog(this, nw));
 				menu.add(typeMenu);
@@ -100,10 +100,10 @@ public class AccountSettingsPanel extends JPanel {
 			} else {
 				var menu = new JPopupMenu();
 				for (var n : nws) {
-					JMenu networkMenu = new JMenu(n.getName());
-					JMenuItem standardItem = new JMenuItem(rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE_STANDARD"));
+					var networkMenu = new JMenu(n.getName());
+					var standardItem = new JMenuItem(rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE_STANDARD"));
 					standardItem.addActionListener(a -> CreateAccount.create_new_account_dialog(this, n));
-					JMenuItem multisigItem = new JMenuItem(rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE_MULTISIG"));
+					var multisigItem = new JMenuItem(rsc_bdl.getString("SETTINGS.ACCOUNT.CREATE_MULTISIG"));
 					multisigItem.addActionListener(a -> CreateAccount.create_new_multisig_account_dialog(this, n));
 					networkMenu.add(standardItem);
 					networkMenu.add(multisigItem);
