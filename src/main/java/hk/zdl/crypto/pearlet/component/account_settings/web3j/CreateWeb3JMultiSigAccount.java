@@ -5,11 +5,9 @@ import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.math.BigInteger;
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.ResourceBundle;
-import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -24,25 +22,16 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 
-import org.web3j.abi.datatypes.Address;
-import org.web3j.contracts.gnosissafe.generated.Safe;
-import org.web3j.crypto.Credentials;
-import org.web3j.crypto.ECKeyPair;
-import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.exceptions.TransactionException;
-import org.web3j.tx.gas.DynamicGasProvider;
 
 import hk.zdl.crypto.pearlet.ds.CryptoNetwork;
 import hk.zdl.crypto.pearlet.lock.CryptoAccount;
 import hk.zdl.crypto.pearlet.misc.IndepandentWindows;
-import hk.zdl.crypto.pearlet.util.CryptoUtil;
 import hk.zdl.crypto.pearlet.util.Util;
 
 public class CreateWeb3JMultiSigAccount {
 
 	private static final ResourceBundle rsc_bdl = Util.getResourceBundle();
-	/** Gnosis Safe 合约地址（主网默认地址：0x68b3465833fb72A70ecDF485Ee4263c06Fd50fda） **/
-	private static final String safeAddress = "0x68b3465833fb72A70ecDF485Ee4263c06Fd50fda";
 
 	public static final void create_new_multisig_account_dialog(Component c, CryptoNetwork nw) {
 		var w = SwingUtilities.getWindowAncestor(c);
@@ -99,51 +88,26 @@ public class CreateWeb3JMultiSigAccount {
 			dialog.pack();
 			dialog.setResizable(false);
 			dialog.setLocationRelativeTo(w);
-			var future = Util.submit(new MyWorker(private_key, owners, _threshold));
-			dialog.setVisible(true);
-			try {
-				var receipt = future.get();
-				if (receipt.isStatusOK()) {
-					String tx_address = receipt.getTransactionHash();
-					String contractAddress = receipt.getContractAddress(); // 直接从事务回执获取合约地址
-					Object[] msg = { rsc_bdl.getString("MULTISIG.CREATION.SUCCESS"), contractAddress, tx_address };
-					JOptionPane.showMessageDialog(w, msg, rsc_bdl.getString("SUCCESS.TITLE"), JOptionPane.INFORMATION_MESSAGE);
-				} else {
-					throw new TransactionException("ERROR.TX_FAILED");
+			Util.submit(() -> {
+				try {
+					var receipt = new MultiSigWorker(private_key, owners, _threshold).call();
+					if (receipt.isStatusOK()) {
+						String tx_address = receipt.getTransactionHash();
+						String contractAddress = receipt.getContractAddress(); // 直接从事务回执获取合约地址
+						Object[] msg = { rsc_bdl.getString("MULTISIG.CREATION.SUCCESS"), contractAddress, tx_address };
+						JOptionPane.showMessageDialog(w, msg, rsc_bdl.getString("SUCCESS.TITLE"), JOptionPane.INFORMATION_MESSAGE);
+					} else {
+						throw new TransactionException(rsc_bdl.getString("ERROR.TX_FAILED"));
+					}
+				} catch (Exception e) {
+					dialog.setVisible(false);
+					JOptionPane.showMessageDialog(w, e.getMessage(), rsc_bdl.getString("GENERAL.ERROR"), JOptionPane.ERROR_MESSAGE);
+				} finally {
+					dialog.setVisible(false);
 				}
-			} catch (Exception e) {
-				dialog.setVisible(false);
-				JOptionPane.showMessageDialog(w, e.getMessage(), rsc_bdl.getString("GENERAL.ERROR"), JOptionPane.ERROR_MESSAGE);
-			} finally {
-				dialog.setVisible(false);
-			}
-			
+			});
+			dialog.setVisible(true);
 		}
 	}
 
-	private static class MyWorker implements Callable<TransactionReceipt> {
-
-		private final byte[] private_key;
-		private final List<String> owners;
-		private final BigInteger threshold;
-
-		private MyWorker(byte[] private_key, List<String> owners, BigInteger threshold) {
-			this.private_key = private_key;
-			this.owners = owners;
-			this.threshold = threshold;
-		}
-
-		@Override
-		public TransactionReceipt call() throws Exception {
-			var credentials = Credentials.create(ECKeyPair.create(private_key));
-			// 修改合约加载方式
-			var contract = Safe.load(safeAddress, CryptoUtil.getWeb3j().get(), credentials, new DynamicGasProvider(CryptoUtil.getWeb3j().get()));
-			// 修正setup方法参数类型
-			var receipt = contract
-					.setup(owners, threshold, Address.DEFAULT.toString(), new byte[] {}, Address.DEFAULT.toString(), Address.DEFAULT.toString(), BigInteger.ZERO, Address.DEFAULT.toString())
-					.send();
-			return receipt;
-		}
-		
-	}
 }
