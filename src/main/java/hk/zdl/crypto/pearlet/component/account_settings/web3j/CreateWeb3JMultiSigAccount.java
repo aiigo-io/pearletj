@@ -90,6 +90,7 @@ public class CreateWeb3JMultiSigAccount {
 			dialog.setLocationRelativeTo(w);
 			Util.submit(() -> {
 				try {
+					new SafeDeployer(private_key, owners, _threshold).call();
 					var receipt = new MultiSigWorker(private_key, owners, _threshold).call();
 					if (receipt.isStatusOK()) {
 						String tx_address = receipt.getTransactionHash();

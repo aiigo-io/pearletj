@@ -95,7 +95,7 @@ public class MultiSigWorker implements Callable<TransactionReceipt> {
 		}
 
 		// 10. 等待交易确认并返回收据
-		return web3j.ethGetTransactionReceipt(response.getTransactionHash()).send().getTransactionReceipt().orElseThrow(() -> new TransactionException("", response.getTransactionHash()));
+		return web3j.ethGetTransactionReceipt(response.getTransactionHash()).send().getTransactionReceipt().get();
 	}
 
 	// 计算域分隔符（Domain Separator）
