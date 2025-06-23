@@ -362,6 +362,11 @@
 		    <artifactId>crypto</artifactId>
 		    <version>4.14.0</version>
 		</dependency>
+	    <dependency>
+	        <groupId>org.web3j</groupId>
+	        <artifactId>abi</artifactId>
+	        <version>4.14.0</version>
+	    </dependency>
 		<dependency>
 		    <groupId>org.web3j</groupId>
 		    <artifactId>utils</artifactId>
